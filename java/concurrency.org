@@ -1,0 +1,62 @@
+#+AUTHOR:王月阳
+#+TITLE:资源争用模型(泛多线程编程)
+#+KEYWORDS:Java concurrenty 多线程 资源争用 Java内存模型 AQS Java锁 MVCC
+#+DESCRIPTION:讲解资源争用模型，如何解决资源争用过程中的资源安全问题。Java又是如何实现资源争用的。
+
+* 线程的演进
+** 从单道程序到多道程序，从多进程到多线程
+
+* 线程的生命周期
+** 线程状态
+** 线程状态之间的转换
+
+* 资源争用模型
+
+** 资源争用模型的含义
+
+** 例子
+
+** 从争的角度解决问题（排队模型）
+*** 排队的本质就是有序
+*** 排队的实现
+
+** 从资源的角度解决问题
+*** 不共享资源 CopyOnWrite
+*** 资源不可变 ImmutableData
+
+** 更细的粒度
+*** 共享锁与排他锁
+*** MVCC
+
+* Java内存模型与资源争用
+用一个状态位标识资源状态：可用不可用，可写不可写，可读不可读
+** Java内存模型与运行时内存分布，分析被争用的资源
+** Java如何使用不共享内存模型解决线程安全问题
+*** copyOnWriteList
+*** ThreadLocal
+
+** Java如果使用不可变资源模型解决线程安全问题
+*** Final关键字
+*** String类
+
+** Java如何使用排队模型解决线程安全问题
+*** synchronized的用法
+*** Java对象头
+*** LockSupport+cas+CHL队列构成了Java锁的基础
+*** AQS解读
+*** 读写分离
+**** ReentrantReadWriteLock
+*** 写写分离
+**** ConcurrentHashMap
+*** CountDownLatch
+*** FutureTask
+*** Semaphore
+
+* Java线程管理
+** ThreadPoolExecutor解读
+*** 参数说明
+*** 核心方法解读
+
+* 分布式系统中的资源争用
+** Redis的单线程实现--排队模型
+** Zookeeper一主多从--排队+读写分离
