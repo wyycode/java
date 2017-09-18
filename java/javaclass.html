@@ -1,0 +1,356 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<title>Javaclass文件结构说明</title>
+<!-- 2017-09-17 周日 11:05 -->
+<meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta  name="generator" content="Org-mode" />
+<meta  name="author" content="王月阳" />
+<meta  name="description" content="对Java编译生成的class文件中，local，stack的含义和Java字节码的运行过程做一些说明。"
+ />
+<meta  name="keywords" content="JAVA CLASS 运行时栈帧 操作数栈 编译器 解释运行 后缀表达式" />
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { color: green; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  pre.src-sh:before    { content: 'sh'; }
+  pre.src-bash:before  { content: 'sh'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-R:before     { content: 'R'; }
+  pre.src-perl:before  { content: 'Perl'; }
+  pre.src-java:before  { content: 'Java'; }
+  pre.src-sql:before   { content: 'SQL'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.right  { text-align: center;  }
+  th.left   { text-align: center;   }
+  th.center { text-align: center; }
+  td.right  { text-align: right;  }
+  td.left   { text-align: left;   }
+  td.center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara:nth-child(2) { display: inline; }
+  .footpara { display: block; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  /*]]>*/-->
+</style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2013 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">Javaclass文件结构说明</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#sec-1">1. 前言</a></li>
+<li><a href="#sec-2">2. JVM解释运行过程</a></li>
+<li><a href="#sec-3">3. class文件结构说明</a>
+<ul>
+<li><a href="#sec-3-1">3.1. stack</a></li>
+<li><a href="#sec-3-2">3.2. locals</a></li>
+<li><a href="#sec-3-3">3.3. arg_size</a></li>
+</ul>
+</li>
+<li><a href="#sec-4">4. 结论</a></li>
+</ul>
+</div>
+</div>
+
+
+<div id="outline-container-sec-1" class="outline-2">
+<h2 id="sec-1"><span class="section-number-2">1</span> 前言</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+这篇文章是基于读者对Java，编译原理，jvm规范有一定了解后书写的。对上述知识缺乏了解的可参考<a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html">jvm规范,第四章</a> 改章节对class文件结构，jvm字节码质量有详细描述。
+</p>
+<hr  />
+<p>
++本文中主要使用到的字节码指令有
+ -dup:复制栈顶数据并重新压入栈
+ -iload:将int型数值压入栈
+ -iadd:加法运算，需要两个参数
+ -iconst_1:将int类型1压入栈
+ -istore:将栈顶int值存到本地变量中
+ -new:创建一个对象，并将引用值压入栈
+ -invokervirtual:调用实例方法
++本文中使用的Java命令有
+ -javac:Java语言编译命令，将java源文件编译成虚拟机可执行的class文件
+ -javap:Java反编译命令，讲class文件反编译成Java文件，或通过-verbose参数查看class文件结构
+</p>
+<hr  />
+</div>
+</div>
+
+<div id="outline-container-sec-2" class="outline-2">
+<h2 id="sec-2"><span class="section-number-2">2</span> JVM解释运行过程</h2>
+<div class="outline-text-2" id="text-2">
+<p>
+Java语言的运行，是将Java文件编译成class文件，然后加载到虚拟机上运行的。在不考虑JIT（<a href="https://www.ibm.com/developerworks/cn/java/j-lo-just-in-time/">Java及时编译</a>） 的情况下，jvm是解释执行的，而且是基于栈实现的运算。
+这句话是什么意思呢？比如我们常见的一行代码:
+</p>
+<div class="org-src-container">
+
+<pre class="src src-java">int a = 2 + 3;
+</pre>
+</div>
+<p>
+这是一个常见的赋值表达式，含义是声明一个变量a，将2+2的值赋值给变量a。其中2+3是生活中常见的数学表达式，我们称这种形式的表达式为中缀表达式。而经过javac编译后
+将形成后缀表达式的形式：2 3 + 的形式。Java的解释执行器在读入该行代码的时候，会将2从内存加载到栈里面；然后读取3加载到栈里面，然后读取到+运算符，就会将+运算符需要
+的两个参数，也就是栈里面的2和3弹出来，然后送给CPU做加法运算。CPU运算完成后，将运算结果4压入栈中。然后通过istore命令将4的值存到变量a指向的内存地址中。
+关于前缀表达式，中缀表达和后缀表达式三种表达式求值的运算逻辑可参考<a href="http://blog.csdn.net/antineutrino/article/details/6763722/">csdn博客</a> 。
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3" class="outline-2">
+<h2 id="sec-3"><span class="section-number-2">3</span> class文件结构说明</h2>
+<div class="outline-text-2" id="text-3">
+<p>
+源文件T.java
+</p>
+<div class="org-src-container">
+
+<pre class="src src-java">public class T {
+    public void test() {
+	int a=1,b=1,c=1,d=2;
+	System.out.println(a + "s" + b + c + d);
+    }
+}
+</pre>
+</div>
+<p>
+我们通过javac T.java 命令编译，然后再使用javap -verbose T命令查看编译后的class文件结构
+</p>
+<hr  />
+<p>
+编译生成的T.class文件结构：
+</p>
+<div class="org-src-container">
+
+<pre class="src src-java">public void test();
+   descriptor: ()V
+   flags: ACC_PUBLIC
+   Code:
+     stack=3, locals=5, args_size=1
+	0: iconst_1
+	1: istore_1
+	2: iconst_1
+	3: istore_2
+	4: iconst_1
+	5: istore_3
+	6: iconst_2
+	7: istore        4
+	9: getstatic     #2                  // Field java/lang/System.out:Ljava/io/PrintStream;
+       12: new           #3                  // class java/lang/StringBuilder
+       15: dup
+       16: invokespecial #4                  // Method java/lang/StringBuilder."&lt;init&gt;":()V
+       19: iload_1
+       20: invokevirtual #5                  // Method java/lang/StringBuilder.append:(I)Ljava/lang/StringBuilder;
+       23: ldc           #6                  // String s
+       25: invokevirtual #7                  // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+       28: iload_2
+       29: invokevirtual #5                  // Method java/lang/StringBuilder.append:(I)Ljava/lang/StringBuilder;
+       32: iload_3
+       33: invokevirtual #5                  // Method java/lang/StringBuilder.append:(I)Ljava/lang/StringBuilder;
+       36: iload         4
+       38: invokevirtual #5                  // Method java/lang/StringBuilder.append:(I)Ljava/lang/StringBuilder;
+       41: invokevirtual #8                  // Method java/lang/StringBuilder.toString:()Ljava/lang/String;
+       44: invokevirtual #9                  // Method java/io/PrintStream.println:(Ljava/lang/String;)V
+       47: return
+     LineNumberTable:
+       line 3: 0
+       line 4: 9
+       line 5: 47
+</pre>
+</div>
+<p>
+上面的源码只截取了test方法的编译结果。我们重点关注Code部分。
+</p>
+</div>
+<div id="outline-container-sec-3-1" class="outline-3">
+<h3 id="sec-3-1"><span class="section-number-3">3.1</span> stack</h3>
+<div class="outline-text-3" id="text-3-1">
+<p>
+我们首先关注的是stack=3，这句话的含义是test方法在执行的过程中需要的最大操作数栈深度为3。根据我们上一节解释的，jvm是基于栈进行解释执行的。
+我们按照编译出来的jvm字节码一行一行的模拟jvm的运行过程
+</p>
+<div class="org-src-container">
+
+<pre class="src src-java"> 0: iconst_1              :将int1压入栈
+ 1: istore_1              :将栈顶的1弹出赋值给变量a
+ 2: iconst_1              :将int1压入栈
+ 3: istore_2              :将栈顶的1弹出赋值给变量b
+ 4: iconst_1              :
+ 5: istore_3              :
+ 6: iconst_2              :将int2压入栈
+ 7: istore        4       :将栈顶的2弹出赋值给变量d
+ 9: getstatic     #2      :获取PrintStream对象
+12: new           #3      :新建StringBuilder对象，并将对象地址值压入栈，stack=1
+15: dup                   :复制栈顶值，并压入栈，stack=2
+16: invokespecial #4      :执行SB对象的初始化方法
+19: iload_1               :将变量a的值压入栈，stack=3
+20: invokevirtual #5      :执行append方法，依次弹出栈顶的a和sb，stack=1，执行完成append方法后，将sb对象压入栈，stack=2。
+23: ldc           #6      :将字符s压入栈，stack=3
+25: invokevirtual #7      :执行append方法，将s和sb弹出栈，stack=1，执行完成append方法，将sb压入栈，stack=2。
+28: iload_2               :同19
+29: invokevirtual #5      :同20
+32: iload_3               :同19
+33: invokevirtual #5      :同20
+36: iload         4       :同19
+38: invokevirtual #5      :同20
+41: invokevirtual #8      :执行sb的toString方法，并将返回的字符串压入栈，stack=2
+44: invokevirtual #9      :将栈顶的字符串弹出，执行println方法，stack=1
+47: return                :方法返回，无须返回值
+</pre>
+</div>
+<p>
+观察整个执行过程后，可以得出，test在执行的过程中，使用到的最大操作数栈的深度为3。
+</p>
+</div>
+</div>
+<div id="outline-container-sec-3-2" class="outline-3">
+<h3 id="sec-3-2"><span class="section-number-3">3.2</span> locals</h3>
+<div class="outline-text-3" id="text-3-2">
+<p>
+locals是本地变量的数量。本例中，共需要储存三个1，一个2和一个this指针，所以本地变量表中需要5个slot储存变量。主意long和double是64位的，所以需要两个slot存储。但本例中，
+5个变量都是32位的，不需要扩展slot。
+</p>
+</div>
+</div>
+<div id="outline-container-sec-3-3" class="outline-3">
+<h3 id="sec-3-3"><span class="section-number-3">3.3</span> arg_size</h3>
+<div class="outline-text-3" id="text-3-3">
+<p>
+arg_size是方法参数的个数，因为该方法是实例方法，所以会默认传入this指针作为参数，所以需要占用一个本地变量表的位置和一个参数位。如果将test方法改为static的，则不需要传入
+this指针，就不会占用了，locals将变成4，arg_size变成0。读者可自行实验验证。
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-sec-4" class="outline-2">
+<h2 id="sec-4"><span class="section-number-2">4</span> 结论</h2>
+<div class="outline-text-2" id="text-4">
+<p>
+-javac编译的时候，会把我们常见的中缀表达式翻译成jvm使用的后缀表达式
+-jvm是基于栈进行解释执行的
+-class文件中stack是方法执行过程中用到的最大操作数栈深度
+-class文件中locals是本地变量表中变量需要的slot的个数
+-class文件中arg\_size是方法的参数个数
+-static方法不需要传入this指针，但非static方法默认会传入this指针。this要占用本地变量表中slot的个数和方法参数的个数
+</p>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="author">Author: 王月阳</p>
+<p class="email">Email: <a href="mailto:645583145@qq.com">645583145@qq.com</a></p>
+<p class="date">Created: 2017-09-17 周日 11:05</p>
+<p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.5.1 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>
