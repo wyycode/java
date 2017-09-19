@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
 <title>资源争用模型(泛多线程编程)</title>
-<!-- 2017-09-18 周一 23:19 -->
+<!-- 2017-09-19 周二 16:06 -->
 <meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta  name="generator" content="Org-mode" />
 <meta  name="author" content="王月阳" />
@@ -156,85 +156,130 @@ for the JavaScript code in this tag.
 <li><a href="#sec-2-2">2.2. 线程状态之间的转换</a></li>
 </ul>
 </li>
-<li><a href="#sec-3">3. 资源争用模型</a>
+<li><a href="#sec-3">3. 多线程适用场景</a></li>
+<li><a href="#sec-4">4. 资源争用模型</a>
 <ul>
-<li><a href="#sec-3-1">3.1. 资源争用模型的含义</a></li>
-<li><a href="#sec-3-2">3.2. 例子</a></li>
-<li><a href="#sec-3-3">3.3. 从争的角度解决问题（排队模型）</a>
+<li><a href="#sec-4-1">4.1. 资源争用模型的含义</a></li>
+<li><a href="#sec-4-2">4.2. 例子</a></li>
+<li><a href="#sec-4-3">4.3. 从争的角度解决问题（排队模型）</a>
 <ul>
-<li><a href="#sec-3-3-1">3.3.1. 排队的本质就是有序</a></li>
-<li><a href="#sec-3-3-2">3.3.2. 排队的实现</a></li>
+<li><a href="#sec-4-3-1">4.3.1. 排队的本质就是有序</a></li>
+<li><a href="#sec-4-3-2">4.3.2. 排队的实现</a></li>
 </ul>
 </li>
-<li><a href="#sec-3-4">3.4. 从资源的角度解决问题</a>
+<li><a href="#sec-4-4">4.4. 从资源的角度解决问题</a>
 <ul>
-<li><a href="#sec-3-4-1">3.4.1. 不共享资源 CopyOnWrite</a></li>
-<li><a href="#sec-3-4-2">3.4.2. 资源不可变 ImmutableData</a></li>
+<li><a href="#sec-4-4-1">4.4.1. 不共享资源 CopyOnWrite</a></li>
+<li><a href="#sec-4-4-2">4.4.2. 资源不可变 ImmutableData</a></li>
 </ul>
 </li>
-<li><a href="#sec-3-5">3.5. 更细的粒度</a>
+<li><a href="#sec-4-5">4.5. 更细的粒度</a>
 <ul>
-<li><a href="#sec-3-5-1">3.5.1. 共享锁与排他锁</a></li>
-<li><a href="#sec-3-5-2">3.5.2. MVCC</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li><a href="#sec-4">4. Java内存模型与资源争用</a>
-<ul>
-<li><a href="#sec-4-1">4.1. Java内存模型与运行时内存分布，分析被争用的资源</a></li>
-<li><a href="#sec-4-2">4.2. Java如何使用不共享内存模型解决线程安全问题</a>
-<ul>
-<li><a href="#sec-4-2-1">4.2.1. copyOnWriteList</a></li>
-<li><a href="#sec-4-2-2">4.2.2. ThreadLocal</a></li>
-</ul>
-</li>
-<li><a href="#sec-4-3">4.3. Java如果使用不可变资源模型解决线程安全问题</a>
-<ul>
-<li><a href="#sec-4-3-1">4.3.1. Final关键字</a></li>
-<li><a href="#sec-4-3-2">4.3.2. String类</a></li>
-</ul>
-</li>
-<li><a href="#sec-4-4">4.4. Java如何使用排队模型解决线程安全问题</a>
-<ul>
-<li><a href="#sec-4-4-1">4.4.1. synchronized的用法</a></li>
-<li><a href="#sec-4-4-2">4.4.2. Java对象头</a></li>
-<li><a href="#sec-4-4-3">4.4.3. LockSupport+cas+CHL队列构成了Java锁的基础</a></li>
-<li><a href="#sec-4-4-4">4.4.4. AQS解读</a></li>
-<li><a href="#sec-4-4-5">4.4.5. 读写分离</a></li>
-<li><a href="#sec-4-4-6">4.4.6. 写写分离</a></li>
-<li><a href="#sec-4-4-7">4.4.7. CountDownLatch</a></li>
-<li><a href="#sec-4-4-8">4.4.8. FutureTask</a></li>
-<li><a href="#sec-4-4-9">4.4.9. Semaphore</a></li>
+<li><a href="#sec-4-5-1">4.5.1. 共享锁与排他锁</a></li>
+<li><a href="#sec-4-5-2">4.5.2. MVCC</a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li><a href="#sec-5">5. Java线程管理</a>
+<li><a href="#sec-5">5. Java内存模型与资源争用</a>
 <ul>
-<li><a href="#sec-5-1">5.1. ThreadPoolExecutor解读</a>
+<li><a href="#sec-5-1">5.1. Java内存模型与运行时内存分布，分析被争用的资源</a></li>
+<li><a href="#sec-5-2">5.2. Java如何使用不共享内存模型解决线程安全问题</a>
 <ul>
-<li><a href="#sec-5-1-1">5.1.1. 参数说明</a></li>
-<li><a href="#sec-5-1-2">5.1.2. 核心方法解读</a></li>
+<li><a href="#sec-5-2-1">5.2.1. copyOnWriteList</a></li>
+<li><a href="#sec-5-2-2">5.2.2. ThreadLocal</a></li>
+</ul>
+</li>
+<li><a href="#sec-5-3">5.3. Java如果使用不可变资源模型解决线程安全问题</a>
+<ul>
+<li><a href="#sec-5-3-1">5.3.1. Final关键字</a></li>
+<li><a href="#sec-5-3-2">5.3.2. String类</a></li>
+</ul>
+</li>
+<li><a href="#sec-5-4">5.4. Java如何使用排队模型解决线程安全问题</a>
+<ul>
+<li><a href="#sec-5-4-1">5.4.1. synchronized的用法</a></li>
+<li><a href="#sec-5-4-2">5.4.2. Java对象头</a></li>
+<li><a href="#sec-5-4-3">5.4.3. LockSupport+cas+CHL队列构成了Java锁的基础</a></li>
+<li><a href="#sec-5-4-4">5.4.4. AQS解读</a></li>
+<li><a href="#sec-5-4-5">5.4.5. 读写分离</a></li>
+<li><a href="#sec-5-4-6">5.4.6. 写写分离</a></li>
+<li><a href="#sec-5-4-7">5.4.7. CountDownLatch</a></li>
+<li><a href="#sec-5-4-8">5.4.8. FutureTask</a></li>
+<li><a href="#sec-5-4-9">5.4.9. Semaphore</a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li><a href="#sec-6">6. 分布式系统中的资源争用</a>
+<li><a href="#sec-6">6. Java线程管理</a>
 <ul>
-<li><a href="#sec-6-1">6.1. Redis的单线程实现&#x2013;排队模型</a></li>
-<li><a href="#sec-6-2">6.2. Zookeeper一主多从&#x2013;排队+读写分离</a></li>
+<li><a href="#sec-6-1">6.1. ThreadPoolExecutor解读</a>
+<ul>
+<li><a href="#sec-6-1-1">6.1.1. 参数说明</a></li>
+<li><a href="#sec-6-1-2">6.1.2. 核心方法解读</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#sec-7">7. 分布式系统中的资源争用</a>
+<ul>
+<li><a href="#sec-7-1">7.1. Redis的单线程实现&#x2013;排队模型</a></li>
+<li><a href="#sec-7-2">7.2. Zookeeper一主多从&#x2013;排队+读写分离</a></li>
 </ul>
 </li>
 </ul>
 </div>
 </div>
 
+
 <div id="outline-container-sec-1" class="outline-2">
 <h2 id="sec-1"><span class="section-number-2">1</span> 线程的演进</h2>
 <div class="outline-text-2" id="text-1">
 </div><div id="outline-container-sec-1-1" class="outline-3">
 <h3 id="sec-1-1"><span class="section-number-3">1.1</span> 从单道程序到多道程序，从多进程到多线程</h3>
+<div class="outline-text-3" id="text-1-1">
+<p>
+    计算机最开始的时候的运行模式是从存储器（存储器大概发展过程：纸带-磁带-软盘-光盘-机械硬盘-ssd）上读取程序，然后将二进
+制命令输送到cpu执行。所以初期的单道程序就是读取一个程序，cpu执行；读取一个程序，cpu执行。相对来说，cpu的运算速度要比
+IO速度快很多，当任务需要执行io的时候，cpu就会等待。所以cpu呈现出来的状态就是三天打渔两天晒网的状态。这对于cpu来说是一种浪费。为了解决这个问题，前辈们
+想出来这样一个方法，一次将多个程序读入到内存中，当一个程序执行到io的时候，就会切换到另一个程序执行。有可能执行的程序不需
+要执行io，这样就会等待当前程序执行完成再执行下一个程序。
+</p>
+
+<p>
+    随着计算机的发展，操作系统开始出现，操作系统的主要功能是通过驱动管理不同的硬件，为用户的程序提供一致的接口。进程的出
+现也为管理计算机资源提供了很好的模型。进程模型是对程序执行所需要的cpu，内存，文件，设备等资源一种整合抽象。因为操作系统
+是以微内核+服务的形式提供功能的。所以就要区分进程是内核进程还是用户进程。内核进程要比用户进程有更全的功能，比如操作io，
+设备，文件等。所以实际上，用户程序要发生io的时候，会通过系统调用将内核进程切换到cpu，使用内核进程完成io功能。系统调用是
+通过一种基础的中断方式实现，具体的不深究。
+</p>
+
+<p>
+    当一个用户进程发生io后，进程会等待io完成。这个时候如果还占用cpu就会导致cpu浪费，如同单道程序一样。所以这个时候应该将
+等待io的进程切换出去，将另一个进程切换到cpu中继续执行。这就是进程切换。如前文所说的，进程持有文件，设备等一系列的资源。
+在进程发生切换的时候，要将当前进程的这些资源切换到内存甚至切换到硬盘中；新的进程切换进来的时候，也要把对应的资源切换进内
+存和cpu中，这需要几千甚至更多的cpu运算，这其实也是对cpu资源的一种浪费。
+</p>
+
+<p>
+    怎么解决资源切换带来的cpu浪费呢？我们先看一下为啥要切换进程。因为cpu执行程序到io的时候，cpu被闲置了，所以要切换到其
+他进程继续使用cpu，而这个场景中是没有涉及到资源的。所以，我们真正要实现的是切换程序对cpu的控制权，而不是资源的切换。那要
+怎么办呢？如果把程序的执行单位和资源拥有者分离开，每次切换的时候只切换执行单位而不切换资源，这样会不会好很多。这也就是线
+程出现的原因。我们在启动一个程序的时候，为这个进程分配资源，文件，设备和cpu，但cpu真正调度的却是线程。线程相对进程来说，
+不会拥有那么多的资源，在线程切换的时候，只需要切换cpu现场和很少一部分的内存数据就可以完成了。这比切换线程要减少很多cpu开
+销。
+</p>
+
+<p>
+    一个线程只包含线程ID，当前指令指针（PC），寄存器集合和线程堆栈。这些数据比起进程来要小很多很多。所以切换起来比进程切
+换方便很多。所以一台机器可以支撑几千几万的线程并发，却只能支撑几百的进程并发。
+</p>
+
+<p>
+    从上述过程可以看出，cpu执行和调度的基本单位从程序演进到进程，又演进到线程。其目的都是为了弥补io和cpu计算之间的速度差
+距，实现对cpu的有效利用。
+</p>
+</div>
 </div>
 </div>
 
@@ -243,155 +288,196 @@ for the JavaScript code in this tag.
 <div class="outline-text-2" id="text-2">
 </div><div id="outline-container-sec-2-1" class="outline-3">
 <h3 id="sec-2-1"><span class="section-number-3">2.1</span> 线程状态</h3>
+<div class="outline-text-3" id="text-2-1">
+<p>
+在jvm中的定义中，线程的状态一共有6中，分别是NEW,RUNNABLE,BLOCKED,WAITING,TIMED<sub>WAITING和TERMINATED。</sub>
+</p>
+<ul class="org-ul">
+<li>NEW：线程创建还没有开始执行的状态。在执行start方法转到RUNNABLE状态。
+</li>
+<li>RUNNABLE：标明线程已经在JVM中执行，但可能等待操作系统为其分配资源，比如cpu，才能真正执行
+</li>
+<li>BLOCKED：标明线程处于阻塞状态，等待获取锁
+</li>
+<li>WAITING：标明线程处于等待状态，等待其他线程将其唤醒。BLOCKED和WAITING的区别是BLOCKED是被动阻塞，等待系统唤醒进入
+RUNNABLE状态，而WAITING是线程主动进入等待状态，由用户线程负责唤醒。jvm为了管理方便才区分了这两种状态
+</li>
+<li>TIMED<sub>WAITING：带超时时间的等待状态</sub>
+</li>
+<li>TERMINATED：线程终止状态
+</li>
+</ul>
+</div>
 </div>
 <div id="outline-container-sec-2-2" class="outline-3">
 <h3 id="sec-2-2"><span class="section-number-3">2.2</span> 线程状态之间的转换</h3>
+<div class="outline-text-3" id="text-2-2">
+<p>
+[NEW &#x2013;start()&#x2013;&gt; RUNNABLE
+[RUNNABLE &#x2013;Thread.sleep()&#x2013;&gt; WAITING]<br  />
+   [RUNNABLE &#x2013;Thread.sleep()&#x2013;&gt; WAITING]<br  />
+   [RUNNABLE &#x2013;Thread.sleep(long)&#x2013;&gt; TIMED<sub>WAITING]<br  />
+</sub>
+[RUNNABLE &#x2013;Thread.sleep(long)&#x2013;&gt; TIMED<sub>WAITING]<br  />
+</sub>
+[RUNNABLE &#x2013;Thread.sleep(long)&#x2013;&gt; TIMED<sub>WAITING]<br  />
+</sub>
+[RUNNABLE &#x2013;synchronized&#x2013;&gt; BLOCKED]<br  />
+   [RUNNABLE &#x2013;IO&#x2013;&gt; TIMED<sub>WAITING</sub>,WAITING,BLOCKED]<br  />
+   [TIME<sub>WAITTING</sub>,WAITING,BLOCKED &#x2013;OVERTIME,interrupt(),IOSignal,HoldLock&#x2013;&gt; RUNNABLE]<br  />
+   [RUNNABLE &#x2013;run()&#x2013;&gt; TERMINATED]
+</p>
+</div>
 </div>
 </div>
 
 <div id="outline-container-sec-3" class="outline-2">
-<h2 id="sec-3"><span class="section-number-2">3</span> 资源争用模型</h2>
-<div class="outline-text-2" id="text-3">
-</div><div id="outline-container-sec-3-1" class="outline-3">
-<h3 id="sec-3-1"><span class="section-number-3">3.1</span> 资源争用模型的含义</h3>
-</div>
-
-<div id="outline-container-sec-3-2" class="outline-3">
-<h3 id="sec-3-2"><span class="section-number-3">3.2</span> 例子</h3>
-</div>
-
-<div id="outline-container-sec-3-3" class="outline-3">
-<h3 id="sec-3-3"><span class="section-number-3">3.3</span> 从争的角度解决问题（排队模型）</h3>
-<div class="outline-text-3" id="text-3-3">
-</div><div id="outline-container-sec-3-3-1" class="outline-4">
-<h4 id="sec-3-3-1"><span class="section-number-4">3.3.1</span> 排队的本质就是有序</h4>
-</div>
-<div id="outline-container-sec-3-3-2" class="outline-4">
-<h4 id="sec-3-3-2"><span class="section-number-4">3.3.2</span> 排队的实现</h4>
-</div>
-</div>
-
-<div id="outline-container-sec-3-4" class="outline-3">
-<h3 id="sec-3-4"><span class="section-number-3">3.4</span> 从资源的角度解决问题</h3>
-<div class="outline-text-3" id="text-3-4">
-</div><div id="outline-container-sec-3-4-1" class="outline-4">
-<h4 id="sec-3-4-1"><span class="section-number-4">3.4.1</span> 不共享资源 CopyOnWrite</h4>
-</div>
-<div id="outline-container-sec-3-4-2" class="outline-4">
-<h4 id="sec-3-4-2"><span class="section-number-4">3.4.2</span> 资源不可变 ImmutableData</h4>
-</div>
-</div>
-
-<div id="outline-container-sec-3-5" class="outline-3">
-<h3 id="sec-3-5"><span class="section-number-3">3.5</span> 更细的粒度</h3>
-<div class="outline-text-3" id="text-3-5">
-</div><div id="outline-container-sec-3-5-1" class="outline-4">
-<h4 id="sec-3-5-1"><span class="section-number-4">3.5.1</span> 共享锁与排他锁</h4>
-</div>
-<div id="outline-container-sec-3-5-2" class="outline-4">
-<h4 id="sec-3-5-2"><span class="section-number-4">3.5.2</span> MVCC</h4>
-</div>
-</div>
+<h2 id="sec-3"><span class="section-number-2">3</span> 多线程适用场景</h2>
 </div>
 
 <div id="outline-container-sec-4" class="outline-2">
-<h2 id="sec-4"><span class="section-number-2">4</span> Java内存模型与资源争用</h2>
+<h2 id="sec-4"><span class="section-number-2">4</span> 资源争用模型</h2>
 <div class="outline-text-2" id="text-4">
-<p>
-用一个状态位标识资源状态：可用不可用，可写不可写，可读不可读
-</p>
+</div><div id="outline-container-sec-4-1" class="outline-3">
+<h3 id="sec-4-1"><span class="section-number-3">4.1</span> 资源争用模型的含义</h3>
 </div>
-<div id="outline-container-sec-4-1" class="outline-3">
-<h3 id="sec-4-1"><span class="section-number-3">4.1</span> Java内存模型与运行时内存分布，分析被争用的资源</h3>
-</div>
+
 <div id="outline-container-sec-4-2" class="outline-3">
-<h3 id="sec-4-2"><span class="section-number-3">4.2</span> Java如何使用不共享内存模型解决线程安全问题</h3>
-<div class="outline-text-3" id="text-4-2">
-</div><div id="outline-container-sec-4-2-1" class="outline-4">
-<h4 id="sec-4-2-1"><span class="section-number-4">4.2.1</span> copyOnWriteList</h4>
-</div>
-<div id="outline-container-sec-4-2-2" class="outline-4">
-<h4 id="sec-4-2-2"><span class="section-number-4">4.2.2</span> ThreadLocal</h4>
-</div>
+<h3 id="sec-4-2"><span class="section-number-3">4.2</span> 例子</h3>
 </div>
 
 <div id="outline-container-sec-4-3" class="outline-3">
-<h3 id="sec-4-3"><span class="section-number-3">4.3</span> Java如果使用不可变资源模型解决线程安全问题</h3>
+<h3 id="sec-4-3"><span class="section-number-3">4.3</span> 从争的角度解决问题（排队模型）</h3>
 <div class="outline-text-3" id="text-4-3">
 </div><div id="outline-container-sec-4-3-1" class="outline-4">
-<h4 id="sec-4-3-1"><span class="section-number-4">4.3.1</span> Final关键字</h4>
+<h4 id="sec-4-3-1"><span class="section-number-4">4.3.1</span> 排队的本质就是有序</h4>
 </div>
 <div id="outline-container-sec-4-3-2" class="outline-4">
-<h4 id="sec-4-3-2"><span class="section-number-4">4.3.2</span> String类</h4>
+<h4 id="sec-4-3-2"><span class="section-number-4">4.3.2</span> 排队的实现</h4>
 </div>
 </div>
 
 <div id="outline-container-sec-4-4" class="outline-3">
-<h3 id="sec-4-4"><span class="section-number-3">4.4</span> Java如何使用排队模型解决线程安全问题</h3>
+<h3 id="sec-4-4"><span class="section-number-3">4.4</span> 从资源的角度解决问题</h3>
 <div class="outline-text-3" id="text-4-4">
 </div><div id="outline-container-sec-4-4-1" class="outline-4">
-<h4 id="sec-4-4-1"><span class="section-number-4">4.4.1</span> synchronized的用法</h4>
+<h4 id="sec-4-4-1"><span class="section-number-4">4.4.1</span> 不共享资源 CopyOnWrite</h4>
 </div>
 <div id="outline-container-sec-4-4-2" class="outline-4">
-<h4 id="sec-4-4-2"><span class="section-number-4">4.4.2</span> Java对象头</h4>
+<h4 id="sec-4-4-2"><span class="section-number-4">4.4.2</span> 资源不可变 ImmutableData</h4>
 </div>
-<div id="outline-container-sec-4-4-3" class="outline-4">
-<h4 id="sec-4-4-3"><span class="section-number-4">4.4.3</span> LockSupport+cas+CHL队列构成了Java锁的基础</h4>
 </div>
-<div id="outline-container-sec-4-4-4" class="outline-4">
-<h4 id="sec-4-4-4"><span class="section-number-4">4.4.4</span> AQS解读</h4>
+
+<div id="outline-container-sec-4-5" class="outline-3">
+<h3 id="sec-4-5"><span class="section-number-3">4.5</span> 更细的粒度</h3>
+<div class="outline-text-3" id="text-4-5">
+</div><div id="outline-container-sec-4-5-1" class="outline-4">
+<h4 id="sec-4-5-1"><span class="section-number-4">4.5.1</span> 共享锁与排他锁</h4>
 </div>
-<div id="outline-container-sec-4-4-5" class="outline-4">
-<h4 id="sec-4-4-5"><span class="section-number-4">4.4.5</span> 读写分离</h4>
-<div class="outline-text-4" id="text-4-4-5">
-</div><ol class="org-ol"><li><a id="sec-4-4-5-1" name="sec-4-4-5-1"></a>ReentrantReadWriteLock<br  /></li></ol>
-</div>
-<div id="outline-container-sec-4-4-6" class="outline-4">
-<h4 id="sec-4-4-6"><span class="section-number-4">4.4.6</span> 写写分离</h4>
-<div class="outline-text-4" id="text-4-4-6">
-</div><ol class="org-ol"><li><a id="sec-4-4-6-1" name="sec-4-4-6-1"></a>ConcurrentHashMap<br  /></li></ol>
-</div>
-<div id="outline-container-sec-4-4-7" class="outline-4">
-<h4 id="sec-4-4-7"><span class="section-number-4">4.4.7</span> CountDownLatch</h4>
-</div>
-<div id="outline-container-sec-4-4-8" class="outline-4">
-<h4 id="sec-4-4-8"><span class="section-number-4">4.4.8</span> FutureTask</h4>
-</div>
-<div id="outline-container-sec-4-4-9" class="outline-4">
-<h4 id="sec-4-4-9"><span class="section-number-4">4.4.9</span> Semaphore</h4>
+<div id="outline-container-sec-4-5-2" class="outline-4">
+<h4 id="sec-4-5-2"><span class="section-number-4">4.5.2</span> MVCC</h4>
 </div>
 </div>
 </div>
 
 <div id="outline-container-sec-5" class="outline-2">
-<h2 id="sec-5"><span class="section-number-2">5</span> Java线程管理</h2>
+<h2 id="sec-5"><span class="section-number-2">5</span> Java内存模型与资源争用</h2>
 <div class="outline-text-2" id="text-5">
-</div><div id="outline-container-sec-5-1" class="outline-3">
-<h3 id="sec-5-1"><span class="section-number-3">5.1</span> ThreadPoolExecutor解读</h3>
-<div class="outline-text-3" id="text-5-1">
-</div><div id="outline-container-sec-5-1-1" class="outline-4">
-<h4 id="sec-5-1-1"><span class="section-number-4">5.1.1</span> 参数说明</h4>
+<p>
+用一个状态位标识资源状态：可用不可用，可写不可写，可读不可读
+</p>
 </div>
-<div id="outline-container-sec-5-1-2" class="outline-4">
-<h4 id="sec-5-1-2"><span class="section-number-4">5.1.2</span> 核心方法解读</h4>
+<div id="outline-container-sec-5-1" class="outline-3">
+<h3 id="sec-5-1"><span class="section-number-3">5.1</span> Java内存模型与运行时内存分布，分析被争用的资源</h3>
+</div>
+<div id="outline-container-sec-5-2" class="outline-3">
+<h3 id="sec-5-2"><span class="section-number-3">5.2</span> Java如何使用不共享内存模型解决线程安全问题</h3>
+<div class="outline-text-3" id="text-5-2">
+</div><div id="outline-container-sec-5-2-1" class="outline-4">
+<h4 id="sec-5-2-1"><span class="section-number-4">5.2.1</span> copyOnWriteList</h4>
+</div>
+<div id="outline-container-sec-5-2-2" class="outline-4">
+<h4 id="sec-5-2-2"><span class="section-number-4">5.2.2</span> ThreadLocal</h4>
+</div>
+</div>
+
+<div id="outline-container-sec-5-3" class="outline-3">
+<h3 id="sec-5-3"><span class="section-number-3">5.3</span> Java如果使用不可变资源模型解决线程安全问题</h3>
+<div class="outline-text-3" id="text-5-3">
+</div><div id="outline-container-sec-5-3-1" class="outline-4">
+<h4 id="sec-5-3-1"><span class="section-number-4">5.3.1</span> Final关键字</h4>
+</div>
+<div id="outline-container-sec-5-3-2" class="outline-4">
+<h4 id="sec-5-3-2"><span class="section-number-4">5.3.2</span> String类</h4>
+</div>
+</div>
+
+<div id="outline-container-sec-5-4" class="outline-3">
+<h3 id="sec-5-4"><span class="section-number-3">5.4</span> Java如何使用排队模型解决线程安全问题</h3>
+<div class="outline-text-3" id="text-5-4">
+</div><div id="outline-container-sec-5-4-1" class="outline-4">
+<h4 id="sec-5-4-1"><span class="section-number-4">5.4.1</span> synchronized的用法</h4>
+</div>
+<div id="outline-container-sec-5-4-2" class="outline-4">
+<h4 id="sec-5-4-2"><span class="section-number-4">5.4.2</span> Java对象头</h4>
+</div>
+<div id="outline-container-sec-5-4-3" class="outline-4">
+<h4 id="sec-5-4-3"><span class="section-number-4">5.4.3</span> LockSupport+cas+CHL队列构成了Java锁的基础</h4>
+</div>
+<div id="outline-container-sec-5-4-4" class="outline-4">
+<h4 id="sec-5-4-4"><span class="section-number-4">5.4.4</span> AQS解读</h4>
+</div>
+<div id="outline-container-sec-5-4-5" class="outline-4">
+<h4 id="sec-5-4-5"><span class="section-number-4">5.4.5</span> 读写分离</h4>
+<div class="outline-text-4" id="text-5-4-5">
+</div><ol class="org-ol"><li><a id="sec-5-4-5-1" name="sec-5-4-5-1"></a>ReentrantReadWriteLock<br  /></li></ol>
+</div>
+<div id="outline-container-sec-5-4-6" class="outline-4">
+<h4 id="sec-5-4-6"><span class="section-number-4">5.4.6</span> 写写分离</h4>
+<div class="outline-text-4" id="text-5-4-6">
+</div><ol class="org-ol"><li><a id="sec-5-4-6-1" name="sec-5-4-6-1"></a>ConcurrentHashMap<br  /></li></ol>
+</div>
+<div id="outline-container-sec-5-4-7" class="outline-4">
+<h4 id="sec-5-4-7"><span class="section-number-4">5.4.7</span> CountDownLatch</h4>
+</div>
+<div id="outline-container-sec-5-4-8" class="outline-4">
+<h4 id="sec-5-4-8"><span class="section-number-4">5.4.8</span> FutureTask</h4>
+</div>
+<div id="outline-container-sec-5-4-9" class="outline-4">
+<h4 id="sec-5-4-9"><span class="section-number-4">5.4.9</span> Semaphore</h4>
 </div>
 </div>
 </div>
 
 <div id="outline-container-sec-6" class="outline-2">
-<h2 id="sec-6"><span class="section-number-2">6</span> 分布式系统中的资源争用</h2>
+<h2 id="sec-6"><span class="section-number-2">6</span> Java线程管理</h2>
 <div class="outline-text-2" id="text-6">
 </div><div id="outline-container-sec-6-1" class="outline-3">
-<h3 id="sec-6-1"><span class="section-number-3">6.1</span> Redis的单线程实现&#x2013;排队模型</h3>
+<h3 id="sec-6-1"><span class="section-number-3">6.1</span> ThreadPoolExecutor解读</h3>
+<div class="outline-text-3" id="text-6-1">
+</div><div id="outline-container-sec-6-1-1" class="outline-4">
+<h4 id="sec-6-1-1"><span class="section-number-4">6.1.1</span> 参数说明</h4>
 </div>
-<div id="outline-container-sec-6-2" class="outline-3">
-<h3 id="sec-6-2"><span class="section-number-3">6.2</span> Zookeeper一主多从&#x2013;排队+读写分离</h3>
+<div id="outline-container-sec-6-1-2" class="outline-4">
+<h4 id="sec-6-1-2"><span class="section-number-4">6.1.2</span> 核心方法解读</h4>
+</div>
+</div>
+</div>
+
+<div id="outline-container-sec-7" class="outline-2">
+<h2 id="sec-7"><span class="section-number-2">7</span> 分布式系统中的资源争用</h2>
+<div class="outline-text-2" id="text-7">
+</div><div id="outline-container-sec-7-1" class="outline-3">
+<h3 id="sec-7-1"><span class="section-number-3">7.1</span> Redis的单线程实现&#x2013;排队模型</h3>
+</div>
+<div id="outline-container-sec-7-2" class="outline-3">
+<h3 id="sec-7-2"><span class="section-number-3">7.2</span> Zookeeper一主多从&#x2013;排队+读写分离</h3>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: 王月阳</p>
-<p class="date">Created: 2017-09-18 周一 23:19</p>
+<p class="date">Created: 2017-09-19 周二 16:06</p>
 <p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.5.1 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
