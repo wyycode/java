@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
 <title>资源争用模型(泛多线程编程)</title>
-<!-- 2017-09-19 周二 16:31 -->
+<!-- 2017-09-20 周三 17:21 -->
 <meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta  name="generator" content="Org-mode" />
 <meta  name="author" content="王月阳" />
@@ -351,51 +351,132 @@ RUNNABLE状态，而WAITING是线程主动进入等待状态，由用户线程�
 <div class="outline-text-2" id="text-4">
 </div><div id="outline-container-sec-4-1" class="outline-3">
 <h3 id="sec-4-1"><span class="section-number-3">4.1</span> 资源争用模型的含义</h3>
+<div class="outline-text-3" id="text-4-1">
+<p>
+资源争用，顾名思义就是不同的使用者对共享的资源进行原子性使用。下面我们从日常生活中举个例子来说明一下什么是资源争用。
+</p>
 </div>
-
+</div>
 <div id="outline-container-sec-4-2" class="outline-3">
 <h3 id="sec-4-2"><span class="section-number-3">4.2</span> 例子</h3>
-</div>
+<div class="outline-text-3" id="text-4-2">
+<p>
+举个常见的高速路出口的例子。在这个例子中，不同的车辆就是不同的使用者，高速路出口就是共享的资源。当多辆车同时到达高速
+路出口的时候，一个出口同一个时间点只能允许一辆车通行，这可怎么办呢？现实生活中是什么样的呢，所有车辆排队依次通过出口。
+当车流量特别大的时候，排队的车辆就会很多，又怎么办，增开高速路出口，把车辆分散到不同的出口。所以在本例中，保证业务正
+常进行的两个点分别是排队和增加资源，当然是基于操作是原子的前提下。
+</p>
 
+<p>
+再举个饭店里顾客点菜厨师炒菜的例子，在这个例子中，厨师就是共享的资源，顾客就是资源争用者。那么正常生活中，是怎么保证
+菜被正常的做出来的呢？客户A点了一个菜之后，厨师开始炒菜；然后另一个人B又点了10个菜，这10个菜都由服务员通知厨师炒了。然后厨师
+就会按照服务员给的菜单的顺序一个一个炒菜。在本例中，我们默认了一个前提，就是炒菜是一个一个炒的，这是一个原子的操
+作，不可分割。不然厨师把炒这个菜的盐放到了另一个菜的锅里，就这跪了。在本例中，我们还有一个大家习以为常的点，就是厨师
+会自动的一个一个的炒菜，厨师会人工判断先炒那个菜后炒那个菜，这是不是就相当于给业务线程排了个队呢？除去排队，还有什么
+方法能减少争用呢？套路来了，增加资源啊。。。
+</p>
+
+<p>
+所以，在资源争用模型中，要么排队，要么加资源。
+</p>
+</div>
+</div>
 <div id="outline-container-sec-4-3" class="outline-3">
 <h3 id="sec-4-3"><span class="section-number-3">4.3</span> 从争的角度解决问题（排队模型）</h3>
 <div class="outline-text-3" id="text-4-3">
 </div><div id="outline-container-sec-4-3-1" class="outline-4">
 <h4 id="sec-4-3-1"><span class="section-number-4">4.3.1</span> 排队的本质就是有序</h4>
+<div class="outline-text-4" id="text-4-3-1">
+<p>
+从上一节的例子可以看出，解决争用一个常见的方式就是让操作有序。这个模型我们可以叫它排队模型。通过各种操作的排队，实现
+操作有序，进而实现对资源的原子操作，保证资源的安全。
+</p>
+</div>
 </div>
 <div id="outline-container-sec-4-3-2" class="outline-4">
 <h4 id="sec-4-3-2"><span class="section-number-4">4.3.2</span> 排队的实现</h4>
-</div>
-</div>
+<div class="outline-text-4" id="text-4-3-2">
+<p>
+那么，排队模型怎么实现呢？就说高速路出口的例子，两车司机同时想跟在一个车后面的时候，大概是通过眼神交流，协商好，谁在
+前面谁在后面 。饭店那个例子中，做菜的先后顺序，应该是按照点菜的顺序，先来后到。这其实就是实现排队的两种方法。其一，
+就是大家协商；其二就是操作在到达争用之前，本身就是有序的。
+</p>
 
+<p>
+对应在Java中，协商是怎么实现的呢？线程不可能像人一样有自主思维意识，知道礼让排队。那么线程能怎么判断能不能操作资源呢？
+那么，我们可以从资源的角度来看，当资源已经被占用的时候，新来的线程是不用操作资源的，只能等待。资源没有被其他线程占用，
+也就是空闲的时候，才能被线程操作。那么线程要获取资源的操作权限的时候，可以先判断资源状态，空闲才能使用资源，使用过程
+说要将资源的状态设置为被占用，使用完成之后将资源状态设置为空闲。
+</p>
+
+<p>
+实际使用过程中，我们不可能说为每个共享的资源去设置一个状态字段，因为这与业务本身是无关的，应该被抽象出来作为一个通用
+的逻辑。怎么抽象呢，其实我们就需要一个状态字段，标明对应的资源是被占用还是空闲状态，这个字段可以以任何形式存在，没必
+要放在资源对象里面。
+</p>
+
+<p>
+前面说的是协商实现排队的方式。还有一种方式就是让自然争用者自带顺序，比如按先来后到，比如到达资源争用之前，每个争用者
+分配一个序列号，按序列号使用资源。
+</p>
+</div>
+</div>
+</div>
 <div id="outline-container-sec-4-4" class="outline-3">
 <h3 id="sec-4-4"><span class="section-number-3">4.4</span> 从资源的角度解决问题</h3>
 <div class="outline-text-3" id="text-4-4">
-</div><div id="outline-container-sec-4-4-1" class="outline-4">
+<p>
+从资源的角度来解决资源争用的问题，就是提供足够多的资源，让使用者不去争。不争的还有一种方式就是资源是可被复用的，这相
+当于有无限多份资源，是足够多资源的一种特例。
+</p>
+</div>
+<div id="outline-container-sec-4-4-1" class="outline-4">
 <h4 id="sec-4-4-1"><span class="section-number-4">4.4.1</span> 不共享资源 CopyOnWrite</h4>
+<div class="outline-text-4" id="text-4-4-1">
+<p>
+不共享资源的一种实现方式是来一个争用者就创建一份新在资源给争用者使用，这样就不会跟其他争用者产生竞争关系。
+</p>
+</div>
 </div>
 <div id="outline-container-sec-4-4-2" class="outline-4">
 <h4 id="sec-4-4-2"><span class="section-number-4">4.4.2</span> 资源不可变 ImmutableData</h4>
+<div class="outline-text-4" id="text-4-4-2">
+<p>
+这是不共享的一种特例，相当于有无限多份资源，每个争用者可以自由使用。
+</p>
 </div>
 </div>
-
+</div>
 <div id="outline-container-sec-4-5" class="outline-3">
 <h3 id="sec-4-5"><span class="section-number-3">4.5</span> 更细的粒度</h3>
 <div class="outline-text-3" id="text-4-5">
 </div><div id="outline-container-sec-4-5-1" class="outline-4">
 <h4 id="sec-4-5-1"><span class="section-number-4">4.5.1</span> 共享锁与排他锁</h4>
+<div class="outline-text-4" id="text-4-5-1">
+<p>
+对资源的使用有两种情况，一是使用会修改资源，二是使用不修改资源。对于只有不修改资源的这种使用场景，就相当于资源不可变。
+但对于有修改资源操作的场景，就要排队了。也就是说修改操作是互斥的，修改操作和不修改操作是互斥的。所以因为怼资源操作的
+不同，所以资源占用对应的状态也不相同，
+</p>
+</div>
 </div>
 <div id="outline-container-sec-4-5-2" class="outline-4">
 <h4 id="sec-4-5-2"><span class="section-number-4">4.5.2</span> MVCC</h4>
+<div class="outline-text-4" id="text-4-5-2">
+<p>
+MVCC是一种结合了资源与排队两个方面的方法实现的争用模型，首先，资源每个版本都一个唯一的序列号，不同版本的序列号是有顺
+序的，争用者获取资源的操作之后，得到资源版本号，比如99；当要修改资源的时候，会带着序列号来操作，这样就实现了排队。而
+对于不修改资源的操作来说，可以正常获取资源，没有争用。
+</p>
 </div>
 </div>
 </div>
-
+</div>
 <div id="outline-container-sec-5" class="outline-2">
 <h2 id="sec-5"><span class="section-number-2">5</span> Java内存模型与资源争用</h2>
 <div class="outline-text-2" id="text-5">
 <p>
-用一个状态位标识资源状态：可用不可用，可写不可写，可读不可读
+我们前面总结的，可以用一个状态位标识资源状态：可用不可用，可写不可写，可读不可读。通过这个状态值实现对资源的安全操作。
 </p>
 </div>
 <div id="outline-container-sec-5-1" class="outline-3">
@@ -488,7 +569,7 @@ RUNNABLE状态，而WAITING是线程主动进入等待状态，由用户线程�
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: 王月阳</p>
-<p class="date">Created: 2017-09-19 周二 16:31</p>
+<p class="date">Created: 2017-09-20 周三 17:21</p>
 <p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.5.1 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
