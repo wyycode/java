@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
 <title>资源争用模型(泛多线程编程)</title>
-<!-- 2017-09-20 周三 17:21 -->
+<!-- 2017-09-24 日 14:34 -->
 <meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta  name="generator" content="Org-mode" />
 <meta  name="author" content="王月阳" />
@@ -170,7 +170,7 @@ for the JavaScript code in this tag.
 </li>
 <li><a href="#sec-4-4">4.4. 从资源的角度解决问题</a>
 <ul>
-<li><a href="#sec-4-4-1">4.4.1. 不共享资源 CopyOnWrite</a></li>
+<li><a href="#sec-4-4-1">4.4.1. 不共享资源 New</a></li>
 <li><a href="#sec-4-4-2">4.4.2. 资源不可变 ImmutableData</a></li>
 </ul>
 </li>
@@ -431,7 +431,7 @@ RUNNABLE状态，而WAITING是线程主动进入等待状态，由用户线程�
 </p>
 </div>
 <div id="outline-container-sec-4-4-1" class="outline-4">
-<h4 id="sec-4-4-1"><span class="section-number-4">4.4.1</span> 不共享资源 CopyOnWrite</h4>
+<h4 id="sec-4-4-1"><span class="section-number-4">4.4.1</span> 不共享资源 New</h4>
 <div class="outline-text-4" id="text-4-4-1">
 <p>
 不共享资源的一种实现方式是来一个争用者就创建一份新在资源给争用者使用，这样就不会跟其他争用者产生竞争关系。
@@ -476,11 +476,33 @@ MVCC是一种结合了资源与排队两个方面的方法实现的争用模型�
 <h2 id="sec-5"><span class="section-number-2">5</span> Java内存模型与资源争用</h2>
 <div class="outline-text-2" id="text-5">
 <p>
-我们前面总结的，可以用一个状态位标识资源状态：可用不可用，可写不可写，可读不可读。通过这个状态值实现对资源的安全操作。
+我们前面总结的，可以用一个状态位标识资源状态：可用不可用，可写不可写，可读不可读。争用者通过这个状态值实现对资源的安全
+操作。这个资源争用模型怎么套用到Java里面呢？
+<b>所有锁的构建，都是依赖下层工具为上层提供的原子操作</b> ，比如，java里面的锁，依赖了c提供的互斥量，原子操作等；而c的互斥
+量原子操作则依赖系统提供的原子操作，系统则依赖于硬件提供的原语。这种下层为上层提供的原子操作，我们可以把他们叫做原语。
+我们在构建锁的时候，都是基于原语去构建的。比如流行的分布式锁，也是基于语言提供的原语来实现的。
+</p>
+
+<p>
+在编写java代码到时候我们怎么把这套理论应用起来呢？首先我们要辨别什么是要争用的资源。然后我们分析这个资源在争用的过程中
+分别有什么样的状态，然后再决定用什么来抽象这个资源，也就是决定用什么锁。
 </p>
 </div>
 <div id="outline-container-sec-5-1" class="outline-3">
 <h3 id="sec-5-1"><span class="section-number-3">5.1</span> Java内存模型与运行时内存分布，分析被争用的资源</h3>
+<div class="outline-text-3" id="text-5-1">
+<p>
+Java的内存模型主要包含两部分,一部分是主内存，也就是所有java线程共享；另一部分是java线程的本地变量，包含局部变量和共享
+内存中的变量副本。这个模型明确的说明了，哪些是争用的资源哪些是不争用的。那么对应在java代码中，怎么区分呢？方法内的局
+部变量定义的数据，都是非争用的；其余的类的属性，对象属性，都有可能要被多线程争用。
+</p>
+
+<p>
+比如，我们常用的web编程过程中，servlet容器每接收到一个请求就会调用一个线程去处理请求。但却是调用同一个servlet对象的
+doServie方法。所以，servlet对象的属性在web编程过程中是被当作共享资源争用的，而doService方法里定义的局部变量是每个线程
+私有的。所以，servlet的属性是非线程安全的，需要一定的机制去保证线程安全。
+</p>
+</div>
 </div>
 <div id="outline-container-sec-5-2" class="outline-3">
 <h3 id="sec-5-2"><span class="section-number-3">5.2</span> Java如何使用不共享内存模型解决线程安全问题</h3>
@@ -569,7 +591,7 @@ MVCC是一种结合了资源与排队两个方面的方法实现的争用模型�
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: 王月阳</p>
-<p class="date">Created: 2017-09-20 周三 17:21</p>
+<p class="date">Created: 2017-09-24 日 14:34</p>
 <p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.5.1 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
