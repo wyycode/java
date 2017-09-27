@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
 <title>资源争用模型(泛多线程编程)</title>
-<!-- 2017-09-27 周三 19:22 -->
+<!-- 2017-09-27 三 22:48 -->
 <meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta  name="generator" content="Org-mode" />
 <meta  name="author" content="王月阳" />
@@ -203,13 +203,12 @@ for the JavaScript code in this tag.
 <ul>
 <li><a href="#sec-5-4-1">5.4.1. synchronized的用法</a></li>
 <li><a href="#sec-5-4-2">5.4.2. Java对象头</a></li>
-<li><a href="#sec-5-4-3">5.4.3. LockSupport+cas+state+CHL队列构成了Java锁的基础</a></li>
-<li><a href="#sec-5-4-4">5.4.4. AQS解读</a></li>
-<li><a href="#sec-5-4-5">5.4.5. 读写分离</a></li>
-<li><a href="#sec-5-4-6">5.4.6. 写写分离</a></li>
-<li><a href="#sec-5-4-7">5.4.7. CountDownLatch</a></li>
-<li><a href="#sec-5-4-8">5.4.8. FutureTask</a></li>
-<li><a href="#sec-5-4-9">5.4.9. Semaphore</a></li>
+<li><a href="#sec-5-4-3">5.4.3. AQS解读</a></li>
+<li><a href="#sec-5-4-4">5.4.4. 读写分离</a></li>
+<li><a href="#sec-5-4-5">5.4.5. 写写分离</a></li>
+<li><a href="#sec-5-4-6">5.4.6. CountDownLatch</a></li>
+<li><a href="#sec-5-4-7">5.4.7. FutureTask</a></li>
+<li><a href="#sec-5-4-8">5.4.8. Semaphore</a></li>
 </ul>
 </li>
 </ul>
@@ -756,30 +755,68 @@ Displaced Mark Word。
 </div>
 
 <div id="outline-container-sec-5-4-3" class="outline-4">
-<h4 id="sec-5-4-3"><span class="section-number-4">5.4.3</span> LockSupport+cas+state+CHL队列构成了Java锁的基础</h4>
-</div>
+<h4 id="sec-5-4-3"><span class="section-number-4">5.4.3</span> AQS解读</h4>
+<div class="outline-text-4" id="text-5-4-3">
+<p>
+前面我们所讲的，都是一种感性的认知。比如我们说所有的争用操作都会中某个资源状态互斥量上排队，比如我们说sync保证了线程
+安全，比如我们说ReadWriteLock实现了读写锁，这些都是感性的认知，我们会理解为这样就安全了。但这些到底是怎么实现呢？下
+面我们以AQS为例子，详细说明设计一个锁到底要包含哪些东西，需要哪些支撑，实现哪些功能。
+一个锁的设计要考虑的包含如下几个方面：
+</p>
+<ol class="org-ol">
+<li>抽象资源状态的标志位
+</li>
+<li>对标志位的原子复合操作
+</li>
+<li>对争用者行为的控制，包括暂停和恢复
+</li>
+<li>对争用者的暂存功能
+</li>
+</ol>
 
+<p>
+以上四个条件，就是设计一个锁的时候所要考虑的必要条件。将这四个全部实现，我们就可以设计出一个基本的锁来，然后再通过添
+加一些其他的属性或操作，进而实现复杂一点的锁。这个复杂不是说分布式锁就复杂了，而是一些锁的其他特性，比如公平非公平，
+排他还是共享。
+</p>
+
+<p>
+AQS的全称叫AbstractQueuedSynchronizer，AQS就通过实现上面三个条件，进而提供了一个基础的锁的功能。AQS是怎么实现上面三
+个条件的呢？这要从AQS的基本组成和操作讲起，首先AQS的基本组成包含三部分，一个int类型的state字段-作为抽象资源状态的标
+志位；一个CHL队列，用来储存被暂停的线程-实现对争用者行为的暂存功能，方便恢复；还有一个就是系统提供的Unsafe对象，这个对象
+主要提供了一种功能，就是对state字段原子复合操作，也就是我们常说的cas，比较成功并设置操作，这个操作由jvm层保证了原子
+性。
+</p>
+
+<p>
+AQS的组成满足了上面的条件1，2和4，那么条件3是怎么实现的呢？JUC使用了JVM提供的LockSupport类来实现3。顾名思义，
+LockSupport就提供了锁的基本行为支撑，包括暂停争用者行为和恢复争用者行为。
+</p>
+
+<p>
+下面我们通过分析JUC中ReentrantLock是怎么实现的，来看看怎么把这四个条件组合在一起就实现一个锁的。
+LockSupport+cas+state+CHL队列构成了Java锁的基础
+</p>
+</div>
+</div>
 <div id="outline-container-sec-5-4-4" class="outline-4">
-<h4 id="sec-5-4-4"><span class="section-number-4">5.4.4</span> AQS解读</h4>
+<h4 id="sec-5-4-4"><span class="section-number-4">5.4.4</span> 读写分离</h4>
+<div class="outline-text-4" id="text-5-4-4">
+</div><ol class="org-ol"><li><a id="sec-5-4-4-1" name="sec-5-4-4-1"></a>ReentrantReadWriteLock<br  /></li></ol>
 </div>
 <div id="outline-container-sec-5-4-5" class="outline-4">
-<h4 id="sec-5-4-5"><span class="section-number-4">5.4.5</span> 读写分离</h4>
+<h4 id="sec-5-4-5"><span class="section-number-4">5.4.5</span> 写写分离</h4>
 <div class="outline-text-4" id="text-5-4-5">
-</div><ol class="org-ol"><li><a id="sec-5-4-5-1" name="sec-5-4-5-1"></a>ReentrantReadWriteLock<br  /></li></ol>
+</div><ol class="org-ol"><li><a id="sec-5-4-5-1" name="sec-5-4-5-1"></a>ConcurrentHashMap<br  /></li></ol>
 </div>
 <div id="outline-container-sec-5-4-6" class="outline-4">
-<h4 id="sec-5-4-6"><span class="section-number-4">5.4.6</span> 写写分离</h4>
-<div class="outline-text-4" id="text-5-4-6">
-</div><ol class="org-ol"><li><a id="sec-5-4-6-1" name="sec-5-4-6-1"></a>ConcurrentHashMap<br  /></li></ol>
+<h4 id="sec-5-4-6"><span class="section-number-4">5.4.6</span> CountDownLatch</h4>
 </div>
 <div id="outline-container-sec-5-4-7" class="outline-4">
-<h4 id="sec-5-4-7"><span class="section-number-4">5.4.7</span> CountDownLatch</h4>
+<h4 id="sec-5-4-7"><span class="section-number-4">5.4.7</span> FutureTask</h4>
 </div>
 <div id="outline-container-sec-5-4-8" class="outline-4">
-<h4 id="sec-5-4-8"><span class="section-number-4">5.4.8</span> FutureTask</h4>
-</div>
-<div id="outline-container-sec-5-4-9" class="outline-4">
-<h4 id="sec-5-4-9"><span class="section-number-4">5.4.9</span> Semaphore</h4>
+<h4 id="sec-5-4-8"><span class="section-number-4">5.4.8</span> Semaphore</h4>
 </div>
 </div>
 </div>
@@ -812,7 +849,7 @@ Displaced Mark Word。
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: 王月阳</p>
-<p class="date">Created: 2017-09-27 周三 19:22</p>
+<p class="date">Created: 2017-09-27 三 22:48</p>
 <p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.5.1 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
