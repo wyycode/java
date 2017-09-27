@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
 <title>资源争用模型(泛多线程编程)</title>
-<!-- 2017-09-25 一 22:33 -->
+<!-- 2017-09-27 周三 19:22 -->
 <meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta  name="generator" content="Org-mode" />
 <meta  name="author" content="王月阳" />
@@ -184,7 +184,11 @@ for the JavaScript code in this tag.
 </li>
 <li><a href="#sec-5">5. Java内存模型与资源争用</a>
 <ul>
-<li><a href="#sec-5-1">5.1. 分析被争用的资源</a></li>
+<li><a href="#sec-5-1">5.1. 分析被争用的资源</a>
+<ul>
+<li><a href="#sec-5-1-1">5.1.1. 账户金额问题</a></li>
+</ul>
+</li>
 <li><a href="#sec-5-2">5.2. Java如何使用不共享内存模型解决线程安全问题</a>
 <ul>
 <li><a href="#sec-5-2-1">5.2.1. ThreadLocal</a></li>
@@ -193,14 +197,13 @@ for the JavaScript code in this tag.
 <li><a href="#sec-5-3">5.3. Java如果使用不可变资源模型解决线程安全问题</a>
 <ul>
 <li><a href="#sec-5-3-1">5.3.1. Final关键字</a></li>
-<li><a href="#sec-5-3-2">5.3.2. String类</a></li>
 </ul>
 </li>
 <li><a href="#sec-5-4">5.4. Java如何使用排队模型解决线程安全问题</a>
 <ul>
 <li><a href="#sec-5-4-1">5.4.1. synchronized的用法</a></li>
 <li><a href="#sec-5-4-2">5.4.2. Java对象头</a></li>
-<li><a href="#sec-5-4-3">5.4.3. LockSupport+cas+CHL队列构成了Java锁的基础</a></li>
+<li><a href="#sec-5-4-3">5.4.3. LockSupport+cas+state+CHL队列构成了Java锁的基础</a></li>
 <li><a href="#sec-5-4-4">5.4.4. AQS解读</a></li>
 <li><a href="#sec-5-4-5">5.4.5. 读写分离</a></li>
 <li><a href="#sec-5-4-6">5.4.6. 写写分离</a></li>
@@ -493,11 +496,11 @@ MVCC是一种结合了资源与排队两个方面的方法实现的争用模型�
 <p>
 Java的内存模型主要包含两部分,一部分是主内存，也就是所有java线程共享；另一部分是java线程的本地变量，包含局部变量和共享
 内存中的变量副本。这个模型明确的说明了，哪些是争用的资源哪些是不争用的。那么对应在java代码中，怎么区分呢？方法内的局
-部变量定义的数据，都是非争用的；其余的类的属性，对象属性，都有可能要被多线程争用。
+部变量定义的数据，都是非争用的；其余的类的属性，对象属性，或者传入的参数，都有可能要被多线程争用。
 </p>
 
 <p>
-比如，我们常用的web编程过程中，servlet容器每接收到一个请求就会调用一个线程去处理请求。但却是调用同一个servlet对象的
+比如，我们常规的web编程过程中，servlet容器每接收到一个请求就会调用一个线程去处理请求。但却是调用同一个servlet对象的
 doServie方法。所以，servlet对象的属性在web编程过程中是被当作共享资源争用的，而doService方法里定义的局部变量是每个线程
 私有的。所以，servlet的属性是非线程安全的，需要一定的机制去保证线程安全。
 </p>
@@ -506,9 +509,12 @@ doServie方法。所以，servlet对象的属性在web编程过程中是被当�
 业务系统中，我们怎么分析被争用的资源呢？其实是一样的，关键是分析哪些资源是共享的。比如电商系统中账户的金额，比如商品
 的数量。这些都是会被不同业务线程争用的资源。下面我们具体分析一下，怎么利用资源争用模型保证数据安全的。
 </p>
+</div>
 
+<div id="outline-container-sec-5-1-1" class="outline-4">
+<h4 id="sec-5-1-1"><span class="section-number-4">5.1.1</span> 账户金额问题</h4>
+<div class="outline-text-4" id="text-5-1-1">
 <p>
-<b>*</b> 账户金额问题
 在一个电商系统中，账户是会存在同一个时刻有多个操作请求的，比如用户购买商品发生账户扣款的同时也在充值，比如用户同时从
 多个不同终端进行购买支付操作，比如用户连续支付多笔订单。在这一系列的业务场景中，我们怎么通过资源争用模型来保证账户金
 额的正确呢？
@@ -555,6 +561,7 @@ doServie方法。所以，servlet对象的属性在web编程过程中是被当�
 </p>
 </div>
 </div>
+</div>
 <div id="outline-container-sec-5-2" class="outline-3">
 <h3 id="sec-5-2"><span class="section-number-3">5.2</span> Java如何使用不共享内存模型解决线程安全问题</h3>
 <div class="outline-text-3" id="text-5-2">
@@ -588,9 +595,30 @@ ThreadLocal在java中叫做线程封闭。什么意思呢，就是把对象封�
 </div>
 <div id="outline-container-sec-5-3-1" class="outline-4">
 <h4 id="sec-5-3-1"><span class="section-number-4">5.3.1</span> Final关键字</h4>
+<div class="outline-text-4" id="text-5-3-1">
+<p>
+final修饰类标明类不可被继承，final修饰的变量只能被赋值一次不能修改。利用final关键字，我们如何构造一个不可变对象呢？
+</p>
+
+<ol class="org-ol">
+<li>将类声明为final，所以它不能被继承
+</li>
+<li>将所有的成员声明为私有的，这样就不允许直接访问这些成员
+</li>
+<li>对变量不要提供setter方法
+</li>
+<li>将所有可变的成员声明为final，这样只能对它们赋值一次
+</li>
+<li>通过构造器初始化所有成员，进行深拷贝(deep copy)
+</li>
+<li>在getter方法中，不要直接返回对象本身，而是克隆对象，并返回对象的拷贝
+</li>
+</ol>
+
+<p>
+String类就是不可变数据的一个典型例子。String对象可以安全的被任意线程使用，切不需要加锁开销。
+</p>
 </div>
-<div id="outline-container-sec-5-3-2" class="outline-4">
-<h4 id="sec-5-3-2"><span class="section-number-4">5.3.2</span> String类</h4>
 </div>
 </div>
 
@@ -599,13 +627,138 @@ ThreadLocal在java中叫做线程封闭。什么意思呢，就是把对象封�
 <div class="outline-text-3" id="text-5-4">
 </div><div id="outline-container-sec-5-4-1" class="outline-4">
 <h4 id="sec-5-4-1"><span class="section-number-4">5.4.1</span> synchronized的用法</h4>
+<div class="outline-text-4" id="text-5-4-1">
+<p>
+sync的基本用法是 sync(obj){code&#x2026;}，含义是什么呢？obj对象相当于资源争用模型里面用来标明资源状态的互斥量，code是对共
+享资源的操作。通过sync包裹code，可以实现code对应的操作在obj这个对象上排队。而code内部操作的可能是多个业务对象，这些
+业务对象别抽象成一个资源，然后通过obj来标识资源被占用的状态。
+</p>
+
+<p>
+当sync修饰对象方法的时候，形如 public sync void method() 这种，sync默认会把this指向的对象作为互斥量，那么对同一个对
+象方法的访问，会在这个对象上排队；操作不同对象的线程不会互斥。当sync修饰的是静态方法的时候，会把所在类的class对象作为互斥量，所有访问该方法的线
+程会在这个类对象上排队，因为一般一个类对象在jvm中只有一份，所以所有调用该方法的线程会互斥。
+</p>
+
+<p>
+所以我们要有这一一个理解，sync锁的是对象，sync包裹的代码会在被锁的对象上排队。
+</p>
+</div>
 </div>
 <div id="outline-container-sec-5-4-2" class="outline-4">
 <h4 id="sec-5-4-2"><span class="section-number-4">5.4.2</span> Java对象头</h4>
+<div class="outline-text-4" id="text-5-4-2">
+<p>
+sync锁的对象是怎么实现互斥量功能的呢？HotSpot虚拟机中，对象在内存中的布局分为三个区域，对象头、实例数据和对齐填充。
+对象头包含两部分，Mark Word和类型指针。其中类型指针指向对象的类，虚拟机通过这个指针确定对象是属于哪个类的。Mark Word
+是一个32位的对象，用于存储对象运行时数据，包括hashcode，GC年龄分代，锁状态标识，线程持有的锁，偏向线程ID，偏向时间戳
+等信息。那么在短短的32位内存里，是怎么存储这么多信息的呢？是不同的锁状态会存储不同的数据。
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="left" />
+
+<col  class="left" />
+
+<col  class="left" />
+
+<col  class="right" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="left">锁状态</th>
+<th scope="col" class="left">存储内容</th>
+<th scope="col" class="left">偏向锁标志位</th>
+<th scope="col" class="right">锁标志位</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="left">&#xa0;</td>
+<td class="left">&#xa0;</td>
+<td class="left">&#xa0;</td>
+<td class="right">&#xa0;</td>
+</tr>
+
+<tr>
+<td class="left">无锁</td>
+<td class="left">hashcode(25bits)和gc分代年龄(4bits)</td>
+<td class="left">0</td>
+<td class="right">01</td>
+</tr>
+
+<tr>
+<td class="left">轻量级锁</td>
+<td class="left">指向栈中锁记录的指针</td>
+<td class="left">无</td>
+<td class="right">00</td>
+</tr>
+
+<tr>
+<td class="left">重量级锁</td>
+<td class="left">指向互斥量的指针</td>
+<td class="left">无</td>
+<td class="right">10</td>
+</tr>
+
+<tr>
+<td class="left">偏向锁</td>
+<td class="left">线程ID(23bits)，时间戳(2bits)和分代年龄(4bits)</td>
+<td class="left">1</td>
+<td class="right">01</td>
+</tr>
+
+<tr>
+<td class="left">GC标记</td>
+<td class="left">无</td>
+<td class="left">无</td>
+<td class="right">11</td>
+</tr>
+</tbody>
+</table>
+<p>
+Mark Word对象提供了大量对状态的查询和更新操作，为sync的实现提供了基础。
+锁共有四种状态，无锁、偏向锁、轻量级锁和重量级锁。随着锁的竞争，会从偏向锁升级到轻量级锁，再升级到重量级锁。锁只会升
+级而不会降级。
+</p>
 </div>
+
+<ol class="org-ol"><li><a id="sec-5-4-2-1" name="sec-5-4-2-1"></a>轻量级锁获取过程<br  /><div class="outline-text-5" id="text-5-4-2-1">
+<ol class="org-ol">
+<li>在代码进入同步块的时候，如果同步对象锁状态为无锁状态（锁标志位为“01”状态，是否为偏向锁为“0”），虚拟机首先将
+在当前线程的栈帧中建立一个名为锁记录（Lock Record）的空间，用于存储锁对象目前的Mark Word的拷贝，官方称之为
+Displaced Mark Word。
+</li>
+<li>拷贝对象头中的Mark Word复制到锁记录中。
+</li>
+<li>拷贝成功后，虚拟机将使用CAS操作尝试将对象的Mark Word更新为指向Lock Record的指针，并将Lock record里的owner指针指
+向object mark word。如果更新成功，则执行步骤4，否则执行步骤5。
+</li>
+<li>如果这个更新动作成功了，那么这个线程就拥有了该对象的锁，并且对象Mark Word的锁标志位设置为“00”，即表示此对象处
+于轻量级锁定状态
+</li>
+<li>如果这个更新操作失败了，虚拟机首先会检查对象的Mark Word是否指向当前线程的栈帧，如果是就说明当前线程已经拥有了这
+个对象的锁，那就可以直接进入同步块继续执行。否则说明多个线程竞争锁，轻量级锁就要膨胀为重量级锁，锁标志的状态值变
+为“10”，Mark Word中存储的就是指向重量级锁（互斥量）的指针，后面等待锁的线程也要进入阻塞状态。 而当前线程便尝试
+使用自旋来获取锁，自旋就是为了不让线程阻塞，而采用循环去获取锁的过程。
+</li>
+</ol>
+
+<p>
+从轻量级锁的获取过程，我们也可以看出来，所有锁的设计都是基于抽象状态+对抽象状态的原子操作来实现的。java提供的
+   sync是这样实现的。另一个JUC下面的锁也是这样实现的。
+</p>
+</div>
+</li></ol>
+</div>
+
 <div id="outline-container-sec-5-4-3" class="outline-4">
-<h4 id="sec-5-4-3"><span class="section-number-4">5.4.3</span> LockSupport+cas+CHL队列构成了Java锁的基础</h4>
+<h4 id="sec-5-4-3"><span class="section-number-4">5.4.3</span> LockSupport+cas+state+CHL队列构成了Java锁的基础</h4>
 </div>
+
 <div id="outline-container-sec-5-4-4" class="outline-4">
 <h4 id="sec-5-4-4"><span class="section-number-4">5.4.4</span> AQS解读</h4>
 </div>
@@ -659,7 +812,7 @@ ThreadLocal在java中叫做线程封闭。什么意思呢，就是把对象封�
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: 王月阳</p>
-<p class="date">Created: 2017-09-25 一 22:33</p>
+<p class="date">Created: 2017-09-27 周三 19:22</p>
 <p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.5.1 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
