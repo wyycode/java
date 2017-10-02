@@ -251,11 +251,15 @@ IO速度快很多，当任务需要执行io的时候，cpu就会等待。所以cpu呈现出来的状态就是三天
     安全，比如我们说ReadWriteLock实现了读写锁，这些都是感性的认知，我们会理解为这样就安全了。但这些到底是怎么实现呢？下
     面我们以AQS为例子，详细说明设计一个锁到底要包含哪些东西，需要哪些支撑，实现哪些功能。
 
-    *一个锁的设计要考虑的包含如下几个方面：*
-    *1. 抽象资源状态的标志位*
-    *2. 对标志位的原子复合操作*
-    *3. 对争用者行为的控制，包括暂停和恢复*
-    *4. 对争用者的暂存功能*
+    *一个锁的设计要考虑的包含如下几个方面：* \\
+
+        *1. 抽象资源状态的标志位* 
+
+	*2. 对标志位的原子复合操作* 
+
+	*3. 对争用者行为的控制，包括暂停和恢复* 
+
+	*4. 对争用者的暂存功能*
 
     以上四个条件，就是设计一个锁的时候所要考虑的必要条件。将这四个全部实现，我们就可以设计出一个基本的锁来，然后再通过添
     加一些其他的属性或操作，进而实现复杂一点的锁。这个复杂不是说分布式锁就复杂了，而是一些锁的其他特性，比如公平非公平，
@@ -275,41 +279,44 @@ IO速度快很多，当任务需要执行io的时候，cpu就会等待。所以cpu呈现出来的状态就是三天
     可重入锁来分析功能。公平的意思是线程按先来后到的顺序依次获取、使用和释放锁。可重入的意思是同一个线程在获得锁之后，再
     一次运行到获取锁的时候，不会被阻塞，释放的次数和获取的次数一样，才能释放掉锁。最后，它还实现了锁的功能。
 
-    ReentrantLock有个内部类叫做FairSync，它是AQS的一个子类，我们来梳理一下lock过程：
-    1. 尝试使用原子操作将抽象标志位（state）的值从0改变为1，这里0表示没有线程占用资源，1表示线程独占资源。
+   *ReentrantLock有个内部类叫做FairSync，它是AQS的一个子类，我们来梳理一下lock过程：*
+****     尝试使用原子操作将抽象标志位（state）的值从0改变为1，这里0表示没有线程占用资源，1表示线程独占资源。
+
        1). 获取state值，判断是0的话表明锁未被占用，然后利用UnSafe提供的cas操作尝试将state的值设置为1如果设置成功则说明当
           前线程持有了锁。将锁的拥有者设为当前线程，返回成功标志
+
        2). 如果state的值不是0，说明锁已经被一个线程持有了，然后判断锁的持有者是不是当前线程，如果是的话将state的值加一，
           实现了线程重入次数的记录，后面释放锁的时候对于重入的线程，重入了几次就要做几次减一操作。返回成功标志
 #+begin_src java
 /**
-         * 获取公平锁的方法
-         * 1）获取锁数量c
-         * 1.1)如果c==0，如果当前线程是等待队列中的头节点，使用CAS将state（锁数量）从0设置为1，如果设置成功，当前线程独占锁-->请求成功
-         * 1.2)如果c!=0，判断当前的线程是不是就是当下独占锁的线程，如果是，就将当前的锁数量状态值+1（这也就是可重入锁的名称的来源）-->请求成功
-         * 最后，请求失败后，将当前线程链入队尾并挂起，之后等待被唤醒。
-         */
-        protected final boolean tryAcquire(int acquires) {
-            final Thread current = Thread.currentThread();
-            int c = getState();
-            if (c == 0) {
-                if (isFirst(current) && compareAndSetState(0, acquires)) {
-                    setExclusiveOwnerThread(current);
-                    return true;
-                }
-            }
-            else if (current == getExclusiveOwnerThread()) {
-                int nextc = c + acquires;
-                if (nextc < 0)
-                    throw new Error("Maximum lock count exceeded");
-                setState(nextc);
-                return true;
-            }
-            return false;
-        }
+ * 获取公平锁的方法
+  * 1）获取锁数量c
+  * 1.1)如果c==0，如果当前线程是等待队列中的头节点，使用CAS将state（锁数量）从0设置为1，如果设置成功，当前线程独占锁-->请求成功
+  * 1.2)如果c!=0，判断当前的线程是不是就是当下独占锁的线程，如果是，就将当前的锁数量状态值+1（这也就是可重入锁的名称的来源）-->请求成功
+  * 最后，请求失败后，将当前线程链入队尾并挂起，之后等待被唤醒。
+  */
+ protected final boolean tryAcquire(int acquires) {
+     final Thread current = Thread.currentThread();
+     int c = getState();
+     if (c == 0) {
+         if (isFirst(current) && compareAndSetState(0, acquires)) {
+             setExclusiveOwnerThread(current);
+             return true;
+         }
+     }
+     else if (current == getExclusiveOwnerThread()) {
+         int nextc = c + acquires;
+         if (nextc < 0)
+             throw new Error("Maximum lock count exceeded");
+         setState(nextc);
+         return true;
+     }
+     return false;
+ }
 #+end_src
-    2. 如果第一步尝试失败，会把当前线程放到CHL队列的尾部（公平锁与非公平锁的区别就在这里），放入尾部的这个操作实际上也是
+****    如果第一步尝试失败，会把当前线程放到CHL队列的尾部（公平锁与非公平锁的区别就在这里），放入尾部的这个操作实际上也是
        对CHL队列尾部资源的争用，这里是也是通过cas操作去实现的
+
        1). 创建一个新的CHL节点，存放当前线程；通过一次cas操作实现fast-try，就是快速尝试将节点放入到CHL队列尾部
 #+begin_src java
 /**
@@ -321,155 +328,246 @@ IO速度快很多，当任务需要执行io的时候，cpu就会等待。所以cpu呈现出来的状态就是三天
  */
 private Node addWaiter(Node mode) {
    Node node = new Node(Thread.currentThread(), mode);//创建节点
-        /*
-         * 快速入队
-         */
-        Node pred = tail;//将尾节点赋给pred
-        if (pred != null) {//尾节点不为空
-            node.prev = pred;//将尾节点作为创造出来的节点的前一个节点，即将node链接到为节点后
-            /**
-             * 基于CAS将node设置为尾节点，如果设置失败，说明在当前线程获取尾节点到现在这段过程中已经有其他线程将尾节点给替换过了
-             * 注意：假设有链表node1-->node2-->pred（当然是双链表，这里画成双链表才合适）,
-             * 通过CAS将pred替换成了node节点，即当下的链表为node1-->node2-->node,
-             * 然后根据上边的"node.prev = pred"与下边的"pred.next = node"将pred插入到双链表中去，组成最终的链表如下：
-             * node1-->node2-->pred-->node
-             * 这样的话，实际上我们发现没有指定node2.next=pred与pred.prev=node2，这是为什么呢？
-             * 因为在之前这两句就早就执行好了，即node2.next和pred.prev这连个属性之前就设置好了
-             */
-            if (compareAndSetTail(pred, node)) {
-                pred.next = node;//将node放在尾节点上
-                return node;
-            }
-        }
-        enq(node);//正常入队
-        return node;
+  /*
+   * 快速入队
+   */
+  Node pred = tail;//将尾节点赋给pred
+  if (pred != null) {//尾节点不为空
+      node.prev = pred;//将尾节点作为创造出来的节点的前一个节点，即将node链接到为节点后
+      /**
+       * 基于CAS将node设置为尾节点，如果设置失败，说明在当前线程获取尾节点到现在这段过程中已经有其他线程将尾节点给替换过了
+       * 注意：假设有链表node1-->node2-->pred（当然是双链表，这里画成双链表才合适）,
+       * 通过CAS将pred替换成了node节点，即当下的链表为node1-->node2-->node,
+       * 然后根据上边的"node.prev = pred"与下边的"pred.next = node"将pred插入到双链表中去，组成最终的链表如下：
+       * node1-->node2-->pred-->node
+       * 这样的话，实际上我们发现没有指定node2.next=pred与pred.prev=node2，这是为什么呢？
+       * 因为在之前这两句就早就执行好了，即node2.next和pred.prev这连个属性之前就设置好了
+       */
+      if (compareAndSetTail(pred, node)) {
+          pred.next = node;//将node放在尾节点上
+          return node;
+      }
+  }
+  enq(node);//正常入队
+  return node;
 }
 #+end_src
        2). 如果fast-try失败，就通过for(;;)循环尝试将节点加入到队列尾部去
 #+begin_src java
 /**
-     * 正常入队
-     * @param node
-     * @return 之前的尾节点
-     */
-    private Node enq(final Node node) {
-        for (;;) {//无限循环，一定要阻塞到入队成功为止
-            Node t = tail;//获取尾节点
-            if (t == null) { //如果尾节点为null，说明当前等待队列为空
-                /*Node h = new Node(); // Dummy header
-                h.next = node;
-                node.prev = h;
-                if (compareAndSetHead(h)) {//根据代码实际上是：compareAndSetHead(null,h)
-                    tail = node;
-                    return h;
-                }*/
-                /*
-                 * 注意：上边注释掉的这一段代码是jdk1.6.45中的，在后来的版本中，这一段改成了如下这段
-                 * 基于CAS将新节点（一个dummy节点）设置到头上head去，如果发现内存中的当前值不是null，则说明，在这个过程中，已经有其他线程设置过了。
-                 * 当成功的将这个dummy节点设置到head节点上去时，我们又将这个head节点设置给了tail节点，即head与tail都是当前这个dummy节点，
-                 * 之后有新节点入队的话，就插入到该dummy之后
-                 */
-                if (compareAndSetHead(new Node()))
-                    tail = head;
-            } else {//这一块儿的逻辑与快速入队完全相同
-                node.prev = t;
-                if (compareAndSetTail(t, node)) {//尝试将node节点设为尾节点
-                    t.next = node;//将node节点设为尾节点
-                    return t;
-                }
+ * 正常入队
+ * @param node
+ * @return 之前的尾节点
+ */
+private Node enq(final Node node) {
+    for (;;) {//无限循环，一定要阻塞到入队成功为止
+        Node t = tail;//获取尾节点
+        if (t == null) { //如果尾节点为null，说明当前等待队列为空
+            /*Node h = new Node(); // Dummy header
+            h.next = node;
+            node.prev = h;
+            if (compareAndSetHead(h)) {//根据代码实际上是：compareAndSetHead(null,h)
+                tail = node;
+                return h;
+            }*/
+            /*
+             * 注意：上边注释掉的这一段代码是jdk1.6.45中的，在后来的版本中，这一段改成了如下这段
+             * 基于CAS将新节点（一个dummy节点）设置到头上head去，如果发现内存中的当前值不是null，则说明，在这个过程中，已经有其他线程设置过了。
+             * 当成功的将这个dummy节点设置到head节点上去时，我们又将这个head节点设置给了tail节点，即head与tail都是当前这个dummy节点，
+             * 之后有新节点入队的话，就插入到该dummy之后
+             */
+            if (compareAndSetHead(new Node()))
+                tail = head;
+        } else {//这一块儿的逻辑与快速入队完全相同
+            node.prev = t;
+            if (compareAndSetTail(t, node)) {//尝试将node节点设为尾节点
+                t.next = node;//将node节点设为尾节点
+                return t;
             }
         }
     }
+}
 #+end_src
        3). 入队成功后，有可能前面的节点的线程已经成功释放锁了，这时候刚刚入队的节点就会成为头节点，然后再执行步骤1去尝试
           获取锁，成功则返回
 #+begin_src java
 final boolean acquireQueued(final Node node, int arg) {
-        try {
-            boolean interrupted = false;
+    try {
+        boolean interrupted = false;
+        /*
+         * 无限循环（一直阻塞），直到node的前驱节点p之前的所有节点都执行完毕，p成为了head且node请求成功了
+         */
+        for (;;) {
+            final Node p = node.predecessor();//获取插入节点的前一个节点p
             /*
-             * 无限循环（一直阻塞），直到node的前驱节点p之前的所有节点都执行完毕，p成为了head且node请求成功了
+             * 注意：
+             * 1、这个是跳出循环的唯一条件，除非抛异常
+             * 2、如果p == head && tryAcquire(arg)第一次循环就成功了，interrupted为false，不需要中断自己
+             *         如果p == head && tryAcquire(arg)第一次以后的循环中如果执行了挂起操作后才成功了，interrupted为true，就要中断自己了
              */
-            for (;;) {
-                final Node p = node.predecessor();//获取插入节点的前一个节点p
-                /*
-                 * 注意：
-                 * 1、这个是跳出循环的唯一条件，除非抛异常
-                 * 2、如果p == head && tryAcquire(arg)第一次循环就成功了，interrupted为false，不需要中断自己
-                 *         如果p == head && tryAcquire(arg)第一次以后的循环中如果执行了挂起操作后才成功了，interrupted为true，就要中断自己了
-                 */
-                if (p == head && tryAcquire(arg)) {
-                    setHead(node);//当前节点设置为头节点
-                    p.next = null; 
-                    return interrupted;//跳出循环
-                }
-                if (shouldParkAfterFailedAcquire(p, node) && parkAndCheckInterrupt())
-                    interrupted = true;//被中断了
+            if (p == head && tryAcquire(arg)) {
+                setHead(node);//当前节点设置为头节点
+                p.next = null; 
+                return interrupted;//跳出循环
             }
-        } catch (RuntimeException ex) {
-            cancelAcquire(node);
-            throw ex;
+            if (shouldParkAfterFailedAcquire(p, node) && parkAndCheckInterrupt())
+                interrupted = true;//被中断了
         }
+    } catch (RuntimeException ex) {
+        cancelAcquire(node);
+        throw ex;
     }
+}
 #+end_src
        4). 如果当前节点不是头节点，说明前面节点的线程还没有释放锁，那么就要通过判断当前节点的前一个节点的状态，来决定当
        前节点能不能被阻塞，如果可以利用LockSupport的功能将当前线程阻塞住;否则就把前面节点中，被取消的节点删除掉
 #+begin_src java
 /**
-     * 检测当前节点是否可以被安全的挂起（阻塞）
-     * @param pred    当前节点的前驱节点
-     * @param node    当前节点
+ * 检测当前节点是否可以被安全的挂起（阻塞）
+ * @param pred    当前节点的前驱节点
+ * @param node    当前节点
+ */
+private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
+    int ws = pred.waitStatus;//获取前驱节点（即当前线程的前一个节点）的等待状态
+    if (ws == Node.SIGNAL)//如果前驱节点的等待状态是SIGNAL，表示当前节点将来可以被唤醒，那么当前节点就可以安全的挂起了
+        return true;
+    /*
+     * 1）当ws>0(即CANCELLED==1），前驱节点的线程被取消了，我们会将该节点之前的连续几个被取消的前驱节点从队列中剔除，返回false（即不能挂起）
+     * 2）如果ws<=0&&!=SIGNAL,将当前节点的前驱节点的等待状态设为SIGNAL
      */
-    private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
-        int ws = pred.waitStatus;//获取前驱节点（即当前线程的前一个节点）的等待状态
-        if (ws == Node.SIGNAL)//如果前驱节点的等待状态是SIGNAL，表示当前节点将来可以被唤醒，那么当前节点就可以安全的挂起了
-            return true;
-        /*
-         * 1）当ws>0(即CANCELLED==1），前驱节点的线程被取消了，我们会将该节点之前的连续几个被取消的前驱节点从队列中剔除，返回false（即不能挂起）
-         * 2）如果ws<=0&&!=SIGNAL,将当前节点的前驱节点的等待状态设为SIGNAL
-         */
-        if (ws > 0) {
-            do {
-                /*
-                 * node.prev = pred = pred.prev;
-                 * 上边这句代码相当于下边这两句
-                 * pred = pred.prev;
-                 * node.prev = pred;
-                 */
-                node.prev = pred = pred.prev;
-            } while (pred.waitStatus > 0);
-            pred.next = node;
-        } else {
+    if (ws > 0) {
+        do {
             /*
-             * 尝试将当前节点的前驱节点的等待状态设为SIGNAL
-             * 1/这为什么用CAS，现在已经入队成功了，前驱节点就是pred，除了node外应该没有别的线程在操作这个节点了，那为什么还要用CAS？而不直接赋值呢？
-             * （解释：因为pred可以自己将自己的状态改为cancel，也就是pred的状态可能同时会有两条线程（pred和node）去操作）
-             * 2/既然前驱节点已经设为SIGNAL了，为什么最后还要返回false
-             * （因为CAS可能会失败，这里不管失败与否，都返回false，下一次执行该方法的之后，pred的等待状态就是SIGNAL了）
+             * node.prev = pred = pred.prev;
+             * 上边这句代码相当于下边这两句
+             * pred = pred.prev;
+             * node.prev = pred;
              */
-            compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
-        }
-        return false;
+            node.prev = pred = pred.prev;
+        } while (pred.waitStatus > 0);
+        pred.next = node;
+    } else {
+        /*
+         * 尝试将当前节点的前驱节点的等待状态设为SIGNAL
+         * 1/这为什么用CAS，现在已经入队成功了，前驱节点就是pred，除了node外应该没有别的线程在操作这个节点了，那为什么还要用CAS？而不直接赋值呢？
+         * （解释：因为pred可以自己将自己的状态改为cancel，也就是pred的状态可能同时会有两条线程（pred和node）去操作）
+         * 2/既然前驱节点已经设为SIGNAL了，为什么最后还要返回false
+         * （因为CAS可能会失败，这里不管失败与否，都返回false，下一次执行该方法的之后，pred的等待状态就是SIGNAL了）
+         */
+        compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
     }
+    return false;
+}
 #+end_src
 利用LockSupport实现对线程的暂停操作
 #+begin_src java
 private final boolean parkAndCheckInterrupt() {
-        LockSupport.park(this);//挂起当前的线程
-        return Thread.interrupted();//如果当前线程已经被中断了，返回true
-    }
+    LockSupport.park(this);//挂起当前的线程
+    return Thread.interrupted();//如果当前线程已经被中断了，返回true
+}
 #+end_src
 
-    讲完加锁操作，我们再来看一下解锁是怎么实现的。
-    LockSupport+cas+state+CHL队列构成了Java锁的基础
+    *讲完加锁操作，我们再来看一下解锁是怎么实现的：*
+
+    1) 其实释放锁的操作就比较简单了，首先判断释放锁的线程是否是持有锁的线程，不是则抛出异常。
+    2) 判断释放锁之后，资源状态是不是空闲状态，如果是将锁持有者设置成空，标明没有被占用。并且将CLH队列里，后续节点中第一
+       个有效的节点唤醒
+    3) 将计算出的资源状态值设置到资源状态标志位
+
+设置资源状态的代码：
+#+begin_src java
+protected final boolean tryRelease(int releases) {
+    int c = getState() - releases;
+    if (Thread.currentThread() != getExclusiveOwnerThread())
+        throw new IllegalMonitorStateException();
+    boolean free = false;
+    if (c == 0) {
+        free = true;
+        setExclusiveOwnerThread(null);
+    }
+    setState(c);
+    return free;
+}
+#+end_src
+
+唤醒后续节点的代码：
+#+begin_src java
+private void unparkSuccessor(Node node) {
+    /*
+     * If status is negative (i.e., possibly needing signal) try
+     * to clear in anticipation of signalling. It is OK if this
+     * fails or if status is changed by waiting thread.
+     */
+    int ws = node.waitStatus;
+    if (ws < 0)
+        compareAndSetWaitStatus(node, ws, 0); 
+
+    /*
+     * Thread to unpark is held in successor, which is normally
+     * just the next node.  But if cancelled or apparently null,
+     * traverse backwards from tail to find the actual
+     * non-cancelled successor.
+     */
+    Node s = node.next;
+    if (s == null || s.waitStatus > 0) {
+        s = null;
+        for (Node t = tail; t != null && t != node; t = t.prev)
+            if (t.waitStatus <= 0)
+                s = t;
+    }
+    if (s != null)
+        LockSupport.unpark(s.thread);
+}
+#+end_src
+
+    LockSupport+cas+state+CHL队列构成了Java实现锁的四个基本要素。在其他的系统中，我们想要构建一个锁的时候，也要从这四方
+    面考虑，只要满足了这四个条件，就可以去构建自己想要实现的锁。
 *** 读写分离
-**** ReentrantReadWriteLock
-*** 写写分离
-**** ConcurrentHashMap
+    可重入读写锁的特性就是读读不互斥，读写、写写操作是互斥的。那么跟可重入锁的区别就是纯读操作的时候，是不用排队的。再细
+    化下去就是，资源状态不是简单的分为占用和空闲，而是分为排他占用、共享占用和空闲。对资源的操作也分为排他操作和共享操作。
+    其中排他操作操作资源的时候要将资源状态设置为排他占用，不允许其他操作类型的操作进入。而共享操作读取资源的时候，资源设
+    置为共享占用，允许其他共享操作获取锁，但不允许排他操作获取锁。具体的实现可以参考ReentrantReadWriteLock，就不详细解说
+    了。
 *** CountDownLatch
-*** FutureTask
+    中文译作栅栏，它的主要功能是实现等待其他任务完成后，再继续执行当前任务。比如一个大量计算任务，要分解成几个子任务，然
+    后主任务要等子任务结束之后继续运行，这种场景就可以用CountDownLatch了。主线程构造一个CountDownLatch，state设置为子任
+    务的数量，子任务线程在执行结束的时候，会把state字段原子的减一。主任务线程会阻塞在CountDownLatch的await方法上。等子任
+    务线程把state字段修改为0的时候，标识所有子任务结束，然后会唤醒之前暂停的主任务线程。
+
+    下面通过代码分析一下过程：
+    
+    主任务等待：
+
+#+begin_src java
+// 主线程等待代码
+public final void acquireSharedInterruptibly(int arg) throws InterruptedException {
+    if (Thread.interrupted())
+        throw new InterruptedException();
+    if (tryAcquireShared(arg) < 0)
+        doAcquireSharedInterruptibly(arg);
+}
+// 判断状态是否为0，也就是子任务有没有结束，没有结束就执行AQS方法，加入等待队列中
+public int tryAcquireShared(int acquires) {
+    return getState() == 0? 1 : -1;
+}
+#+end_src
+
+    子任务修改state：
+
+#+begin_src java
+// 先将状态值减一，然后判断状态值是否是0，如果是0说明子任务还行完成，调用AQS的doReleaseShared方法，唤醒在state上等待的主任务
+public final boolean releaseShared(int arg) {
+    if (tryReleaseShared(arg)) {
+        doReleaseShared();
+        return true;
+    }
+    return false;
+}
+#+end_src
+
 *** Semaphore
- 
+ h
+*** FutureTask
 * Java线程管理
 ** ThreadPoolExecutor解读
 *** 参数说明
