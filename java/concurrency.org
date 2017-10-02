@@ -566,13 +566,164 @@ public final boolean releaseShared(int arg) {
 #+end_src
 
 *** Semaphore
- h
-*** FutureTask
-* Java线程管理
-** ThreadPoolExecutor解读
-*** 参数说明
-*** 核心方法解读
+    Semaphore中文被翻译成信号量。它提供了这样的功能，它的state字段作为对资源可同时操作的争用线程数量许可的抽象，通过利用底层提
+    供的cas操作，保证了一个争用线程只能拿到一个许可，对于没有许可的时候，争用线程需要等待已经拿到争用许可的线程释放许可
+    后，再去获取许可。
 
+    代码分析就不贴了，我们感性的分析一下实现过程。state字段用来表明资源被占用的状态，state初始化为几则表明资源可以被几个争用线程同时使用。
+    线程获取许可的时候，调用acquire方法，还是老套路先利用cas操作尝试将state字段的值减一，表明当前线程想占用一个许可；获
+    取成功则继续执行，获取失败则加入到CLH队列中，利用LockSupport将线程暂停执行。当已经获取许可的线程执行完成后，尝试释放
+    一个许可，也就是把state字段的值加一。释放成功后，将CLH队列中等待许可的线程唤醒，让线程去尝试获取许可。
+
+    Semaphore提供了对允许多个争用者同时占用资源这种场景的抽象，正符合我们经常见到的线程池、连接池等场景，也可以用来做限
+    流使用。
+*** FutureTask
+    FutureTask（简写FT）提供了这样一个功能，当我们启用一个线程去做计算的时候，一般是不知道什么时候完成计算，也无法获取返回结果的。
+    但FT+Callable（后面简称FC）却可以在计算完成后获取返回结果。FC是怎么利用资源争用模型实现功能的呢？
+
+    我们首先分析要解决的问题有哪些。一是要知道启用的线程什么时候完成计算，二是从哪里得到计算结果。既然主线程无法主动在完
+    成计算后获取计算结果，我们可以反过来思考，让主线程主动等待，当计算线程完成计算后，将计算结果设置到主线程持有的
+    FT中，并且唤醒等待的主线程。
+
+    那么，这个场景就很符合我们之前说的锁的模型了：线程需要被暂停和暂存，并且能被恢复；主线程和计算线程争用共享的
+    FT这一资源；通过state字段表明FT有没有被设置计算结果的状态。
+
+    我们来感性的理解一下FC的实现过程，首先我们新建一个Callable对象，里面存放要获取计算结果的计算过程，然后我们通过
+    AbstractExecutorService提供的submit方法，新建一个FT对象，FT持有Callable对象，FT本身也实现了runnable接口，中FT的run方
+    法中，执行Callable对象的call方法，获取返回结果，将结果设置到FT的outcome对象上，然后设置state的状态是已完成，并且将等
+    待的线程唤醒。这是计算线程的执行过程。主线程是通过get方法获取计算结果的，跟其他工具一样，get的时候也是先判断state的
+    状态，如果是未完成，则将线程暂停并放入的CLH队列中等待FT执行完成后将其唤醒。
+* Java线程管理
+  通过前面对线程的介绍，我们可以了解到，线程和进程一样，也是对系统资源的一种抽象，只是线程占有的资源要少一点。既然是系统
+  资源，那么就受限于系统配置，不可能无限多的创建。对于这种受限的，且创建和销毁都比较耗时耗力的资源，我们就应该利用资源池
+  的思想将其池化，以达到更高效的管理和使用的目的。jdk就为线程的管理提供了一套线程池工具。核心就是ThreadPoolExecutor这个
+  类。
+** ThreadPoolExecutor解读
+   TPE要实现线程资源池化管理的功能，其结构设计是这样的：一个核心线程数大小，一个最大线程数大小，一个空闲线程等待时长，一
+   个任务暂存队列，一个产生线程的工厂和一个任务拒绝测略。TPE的构造方法也是完成这几个参数的设置。下面我们做一下详细说明。
+*** 参数说明
+    1. corePoolSize：核心线程数大小，也就是TPE中常驻的线程数量
+    2. maximumPoolSize：最大线程数大小，新增任务的时候，如果实际工作的线程数量大于core的数量，就会尝试继续创建新线程来执
+       行任务，但实际工作线程的数量不能超过max，并且小于max且大于core的线程会按照设置的空闲等待时长销毁
+    3. keepAliveTime：空闲等待时长
+    4. unit：空闲等待时长单位，两个结合组成了实际空闲等待时长
+    5. workQueue：暂存任务的任务队列，当实际工作线程数大于core，并且TPE处于运行状态时，新增的任务就会尝试加入到任务队列
+       中去
+    6. handler：拒绝测略，当实际任务数大于max或者虽然加入任务队列成功但TPE已经被关闭的时候，提交的任务就会执行拒绝策略
+*** 核心方法解读
+    代码1：
+#+begin_src java
+public void execute(Runnable command) {
+        if (command == null)
+            throw new NullPointerException();
+        /*
+         * Proceed in 3 steps:
+         *
+         * 1. If fewer than corePoolSize threads are running, try to
+         * start a new thread with the given command as its first
+         * task.  The call to addWorker atomically checks runState and
+         * workerCount, and so prevents false alarms that would add
+         * threads when it shouldn't, by returning false.
+         *
+         * 2. If a task can be successfully queued, then we still need
+         * to double-check whether we should have added a thread
+         * (because existing ones died since last checking) or that
+         * the pool shut down since entry into this method. So we
+         * recheck state and if necessary roll back the enqueuing if
+         * stopped, or start a new thread if there are none.
+         *
+         * 3. If we cannot queue task, then we try to add a new
+         * thread.  If it fails, we know we are shut down or saturated
+         * and so reject the task.
+         */
+        int c = ctl.get();\\ 线程池状态，内含核心线程数
+        if (workerCountOf(c) < corePoolSize) {\\ 判断实际工作线程数是否小于核心线程数
+            if (addWorker(command, true)) \\ 如果小于则新建线程执行任务
+                return;
+            c = ctl.get();\\ 否则重新获取线程池状态
+        }
+        if (isRunning(c) && workQueue.offer(command)) {\\ 判断线程池处于正常工作状态，然后尝试将任务加入任务队列，具体offer方法有哪些特性，就决定了TPE的特性
+            int recheck = ctl.get();\\ 加入任务队列可能是一个阻塞操作，所以加入成功后重新获取以判断状态
+            if (! isRunning(recheck) && remove(command))\\ 如果TPE处于关闭状态，并且把刚刚加入队列的任务成功移除，并执行拒绝策略
+                reject(command);
+            else if (workerCountOf(recheck) == 0)\\否则，判断如果实际工作线程为0的话，就创建新的线程去处理队列中遗留的任务
+                addWorker(null, false);
+        }
+        else if (!addWorker(command, false))\\如果TPE已经关闭，或者放入任务队列失败，会尝试新增线程完成任务
+            reject(command);\\ 尝试失败就执行拒绝策略
+    }
+#+end_src
+代码2：它的功能是尝试新增线程执行任务。core为真的时候，判断工作线程数是否大于核心线程数；否则判断是否大于最大线程数。校
+验通过后会新建一个Worker对象，包含任务和执行任务的线程，线程通过前面设置的线程工厂创建。然后获取TPE的锁，将worker对象加
+入的TPE的worker集合中，如果加入成功就启动线程执行任务；如果加入成功但启动失败，就将worker从集合中移除。
+#+begin_src java
+    private boolean addWorker(Runnable firstTask, boolean core) {
+        retry:
+        for (;;) {
+            int c = ctl.get();
+            int rs = runStateOf(c);
+
+            // Check if queue empty only if necessary.
+            if (rs >= SHUTDOWN &&
+                ! (rs == SHUTDOWN &&
+                   firstTask == null &&
+                   ! workQueue.isEmpty()))
+                return false;
+
+            for (;;) {
+                int wc = workerCountOf(c);
+                if (wc >= CAPACITY ||
+                    wc >= (core ? corePoolSize : maximumPoolSize))
+                    return false;
+                if (compareAndIncrementWorkerCount(c))
+                    break retry;
+                c = ctl.get();  // Re-read ctl
+                if (runStateOf(c) != rs)
+                    continue retry;
+                // else CAS failed due to workerCount change; retry inner loop
+            }
+        }
+
+        boolean workerStarted = false;
+        boolean workerAdded = false;
+        Worker w = null;
+        try {
+            w = new Worker(firstTask);
+            final Thread t = w.thread;
+            if (t != null) {
+                final ReentrantLock mainLock = this.mainLock;
+                mainLock.lock();
+                try {
+                    // Recheck while holding lock.
+                    // Back out on ThreadFactory failure or if
+                    // shut down before lock acquired.
+                    int rs = runStateOf(ctl.get());
+
+                    if (rs < SHUTDOWN ||
+                        (rs == SHUTDOWN && firstTask == null)) {
+                        if (t.isAlive()) // precheck that t is startable
+                            throw new IllegalThreadStateException();
+                        workers.add(w);
+                        int s = workers.size();
+                        if (s > largestPoolSize)
+                            largestPoolSize = s;
+                        workerAdded = true;
+                    }
+                } finally {
+                    mainLock.unlock();
+                }
+                if (workerAdded) {
+                    t.start();
+                    workerStarted = true;
+                }
+            }
+        } finally {
+            if (! workerStarted)
+                addWorkerFailed(w);
+        }
+        return workerStarted;
+    }
+#+end_src
 * 分布式系统中的资源争用
 ** Redis的单线程实现--排队模型
 ** Zookeeper一主多从--排队+读写分离

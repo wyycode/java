@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
 <title>资源争用模型(泛多线程编程)</title>
-<!-- 2017-09-29 周五 18:50 -->
+<!-- 2017-10-02 一 22:43 -->
 <meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta  name="generator" content="Org-mode" />
 <meta  name="author" content="王月阳" />
@@ -835,17 +835,17 @@ LockSupport就提供了锁的基本行为支撑，包括暂停争用者行为和
      final Thread current = Thread.currentThread();
      int c = getState();
      if (c == 0) {
-	 if (isFirst(current) &amp;&amp; compareAndSetState(0, acquires)) {
-	     setExclusiveOwnerThread(current);
-	     return true;
-	 }
+         if (isFirst(current) &amp;&amp; compareAndSetState(0, acquires)) {
+             setExclusiveOwnerThread(current);
+             return true;
+         }
      }
      else if (current == getExclusiveOwnerThread()) {
-	 int nextc = c + acquires;
-	 if (nextc &lt; 0)
-	     throw new Error("Maximum lock count exceeded");
-	 setState(nextc);
-	 return true;
+         int nextc = c + acquires;
+         if (nextc &lt; 0)
+             throw new Error("Maximum lock count exceeded");
+         setState(nextc);
+         return true;
      }
      return false;
  }
@@ -888,8 +888,8 @@ private Node addWaiter(Node mode) {
        * 因为在之前这两句就早就执行好了，即node2.next和pred.prev这连个属性之前就设置好了
        */
       if (compareAndSetTail(pred, node)) {
-	  pred.next = node;//将node放在尾节点上
-	  return node;
+          pred.next = node;//将node放在尾节点上
+          return node;
       }
   }
   enq(node);//正常入队
@@ -909,30 +909,30 @@ private Node addWaiter(Node mode) {
  */
 private Node enq(final Node node) {
     for (;;) {//无限循环，一定要阻塞到入队成功为止
-	Node t = tail;//获取尾节点
-	if (t == null) { //如果尾节点为null，说明当前等待队列为空
-	    /*Node h = new Node(); // Dummy header
-	    h.next = node;
-	    node.prev = h;
-	    if (compareAndSetHead(h)) {//根据代码实际上是：compareAndSetHead(null,h)
-		tail = node;
-		return h;
-	    }*/
-	    /*
-	     * 注意：上边注释掉的这一段代码是jdk1.6.45中的，在后来的版本中，这一段改成了如下这段
-	     * 基于CAS将新节点（一个dummy节点）设置到头上head去，如果发现内存中的当前值不是null，则说明，在这个过程中，已经有其他线程设置过了。
-	     * 当成功的将这个dummy节点设置到head节点上去时，我们又将这个head节点设置给了tail节点，即head与tail都是当前这个dummy节点，
-	     * 之后有新节点入队的话，就插入到该dummy之后
-	     */
-	    if (compareAndSetHead(new Node()))
-		tail = head;
-	} else {//这一块儿的逻辑与快速入队完全相同
-	    node.prev = t;
-	    if (compareAndSetTail(t, node)) {//尝试将node节点设为尾节点
-		t.next = node;//将node节点设为尾节点
-		return t;
-	    }
-	}
+        Node t = tail;//获取尾节点
+        if (t == null) { //如果尾节点为null，说明当前等待队列为空
+            /*Node h = new Node(); // Dummy header
+            h.next = node;
+            node.prev = h;
+            if (compareAndSetHead(h)) {//根据代码实际上是：compareAndSetHead(null,h)
+                tail = node;
+                return h;
+            }*/
+            /*
+             * 注意：上边注释掉的这一段代码是jdk1.6.45中的，在后来的版本中，这一段改成了如下这段
+             * 基于CAS将新节点（一个dummy节点）设置到头上head去，如果发现内存中的当前值不是null，则说明，在这个过程中，已经有其他线程设置过了。
+             * 当成功的将这个dummy节点设置到head节点上去时，我们又将这个head节点设置给了tail节点，即head与tail都是当前这个dummy节点，
+             * 之后有新节点入队的话，就插入到该dummy之后
+             */
+            if (compareAndSetHead(new Node()))
+                tail = head;
+        } else {//这一块儿的逻辑与快速入队完全相同
+            node.prev = t;
+            if (compareAndSetTail(t, node)) {//尝试将node节点设为尾节点
+                t.next = node;//将node节点设为尾节点
+                return t;
+            }
+        }
     }
 }
 </pre>
@@ -945,29 +945,29 @@ private Node enq(final Node node) {
 
 <pre class="src src-java">final boolean acquireQueued(final Node node, int arg) {
     try {
-	boolean interrupted = false;
-	/*
-	 * 无限循环（一直阻塞），直到node的前驱节点p之前的所有节点都执行完毕，p成为了head且node请求成功了
-	 */
-	for (;;) {
-	    final Node p = node.predecessor();//获取插入节点的前一个节点p
-	    /*
-	     * 注意：
-	     * 1、这个是跳出循环的唯一条件，除非抛异常
-	     * 2、如果p == head &amp;&amp; tryAcquire(arg)第一次循环就成功了，interrupted为false，不需要中断自己
-	     *         如果p == head &amp;&amp; tryAcquire(arg)第一次以后的循环中如果执行了挂起操作后才成功了，interrupted为true，就要中断自己了
-	     */
-	    if (p == head &amp;&amp; tryAcquire(arg)) {
-		setHead(node);//当前节点设置为头节点
-		p.next = null; 
-		return interrupted;//跳出循环
-	    }
-	    if (shouldParkAfterFailedAcquire(p, node) &amp;&amp; parkAndCheckInterrupt())
-		interrupted = true;//被中断了
-	}
+        boolean interrupted = false;
+        /*
+         * 无限循环（一直阻塞），直到node的前驱节点p之前的所有节点都执行完毕，p成为了head且node请求成功了
+         */
+        for (;;) {
+            final Node p = node.predecessor();//获取插入节点的前一个节点p
+            /*
+             * 注意：
+             * 1、这个是跳出循环的唯一条件，除非抛异常
+             * 2、如果p == head &amp;&amp; tryAcquire(arg)第一次循环就成功了，interrupted为false，不需要中断自己
+             *         如果p == head &amp;&amp; tryAcquire(arg)第一次以后的循环中如果执行了挂起操作后才成功了，interrupted为true，就要中断自己了
+             */
+            if (p == head &amp;&amp; tryAcquire(arg)) {
+                setHead(node);//当前节点设置为头节点
+                p.next = null; 
+                return interrupted;//跳出循环
+            }
+            if (shouldParkAfterFailedAcquire(p, node) &amp;&amp; parkAndCheckInterrupt())
+                interrupted = true;//被中断了
+        }
     } catch (RuntimeException ex) {
-	cancelAcquire(node);
-	throw ex;
+        cancelAcquire(node);
+        throw ex;
     }
 }
 </pre>
@@ -986,31 +986,31 @@ private Node enq(final Node node) {
 private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
     int ws = pred.waitStatus;//获取前驱节点（即当前线程的前一个节点）的等待状态
     if (ws == Node.SIGNAL)//如果前驱节点的等待状态是SIGNAL，表示当前节点将来可以被唤醒，那么当前节点就可以安全的挂起了
-	return true;
+        return true;
     /*
      * 1）当ws&gt;0(即CANCELLED==1），前驱节点的线程被取消了，我们会将该节点之前的连续几个被取消的前驱节点从队列中剔除，返回false（即不能挂起）
      * 2）如果ws&lt;=0&amp;&amp;!=SIGNAL,将当前节点的前驱节点的等待状态设为SIGNAL
      */
     if (ws &gt; 0) {
-	do {
-	    /*
-	     * node.prev = pred = pred.prev;
-	     * 上边这句代码相当于下边这两句
-	     * pred = pred.prev;
-	     * node.prev = pred;
-	     */
-	    node.prev = pred = pred.prev;
-	} while (pred.waitStatus &gt; 0);
-	pred.next = node;
+        do {
+            /*
+             * node.prev = pred = pred.prev;
+             * 上边这句代码相当于下边这两句
+             * pred = pred.prev;
+             * node.prev = pred;
+             */
+            node.prev = pred = pred.prev;
+        } while (pred.waitStatus &gt; 0);
+        pred.next = node;
     } else {
-	/*
-	 * 尝试将当前节点的前驱节点的等待状态设为SIGNAL
-	 * 1/这为什么用CAS，现在已经入队成功了，前驱节点就是pred，除了node外应该没有别的线程在操作这个节点了，那为什么还要用CAS？而不直接赋值呢？
-	 * （解释：因为pred可以自己将自己的状态改为cancel，也就是pred的状态可能同时会有两条线程（pred和node）去操作）
-	 * 2/既然前驱节点已经设为SIGNAL了，为什么最后还要返回false
-	 * （因为CAS可能会失败，这里不管失败与否，都返回false，下一次执行该方法的之后，pred的等待状态就是SIGNAL了）
-	 */
-	compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
+        /*
+         * 尝试将当前节点的前驱节点的等待状态设为SIGNAL
+         * 1/这为什么用CAS，现在已经入队成功了，前驱节点就是pred，除了node外应该没有别的线程在操作这个节点了，那为什么还要用CAS？而不直接赋值呢？
+         * （解释：因为pred可以自己将自己的状态改为cancel，也就是pred的状态可能同时会有两条线程（pred和node）去操作）
+         * 2/既然前驱节点已经设为SIGNAL了，为什么最后还要返回false
+         * （因为CAS可能会失败，这里不管失败与否，都返回false，下一次执行该方法的之后，pred的等待状态就是SIGNAL了）
+         */
+        compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
     }
     return false;
 }
@@ -1050,11 +1050,11 @@ private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
 <pre class="src src-java">protected final boolean tryRelease(int releases) {
     int c = getState() - releases;
     if (Thread.currentThread() != getExclusiveOwnerThread())
-	throw new IllegalMonitorStateException();
+        throw new IllegalMonitorStateException();
     boolean free = false;
     if (c == 0) {
-	free = true;
-	setExclusiveOwnerThread(null);
+        free = true;
+        setExclusiveOwnerThread(null);
     }
     setState(c);
     return free;
@@ -1075,7 +1075,7 @@ private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
      */
     int ws = node.waitStatus;
     if (ws &lt; 0)
-	compareAndSetWaitStatus(node, ws, 0); 
+        compareAndSetWaitStatus(node, ws, 0); 
 
     /*
      * Thread to unpark is held in successor, which is normally
@@ -1085,13 +1085,13 @@ private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
      */
     Node s = node.next;
     if (s == null || s.waitStatus &gt; 0) {
-	s = null;
-	for (Node t = tail; t != null &amp;&amp; t != node; t = t.prev)
-	    if (t.waitStatus &lt;= 0)
-		s = t;
+        s = null;
+        for (Node t = tail; t != null &amp;&amp; t != node; t = t.prev)
+            if (t.waitStatus &lt;= 0)
+                s = t;
     }
     if (s != null)
-	LockSupport.unpark(s.thread);
+        LockSupport.unpark(s.thread);
 }
 </pre>
 </div>
@@ -1138,9 +1138,9 @@ LockSupport+cas+state+CHL队列构成了Java实现锁的四个基本要素。在
 <pre class="src src-java">// 主线程等待代码
 public final void acquireSharedInterruptibly(int arg) throws InterruptedException {
     if (Thread.interrupted())
-	throw new InterruptedException();
+        throw new InterruptedException();
     if (tryAcquireShared(arg) &lt; 0)
-	doAcquireSharedInterruptibly(arg);
+        doAcquireSharedInterruptibly(arg);
 }
 // 判断状态是否为0，也就是子任务有没有结束，没有结束就执行AQS方法，加入等待队列中
 public int tryAcquireShared(int acquires) {
@@ -1158,8 +1158,8 @@ public int tryAcquireShared(int acquires) {
 <pre class="src src-java">// 先将状态值减一，然后判断状态值是否是0，如果是0说明子任务还行完成，调用AQS的doReleaseShared方法，唤醒在state上等待的主任务
 public final boolean releaseShared(int arg) {
     if (tryReleaseShared(arg)) {
-	doReleaseShared();
-	return true;
+        doReleaseShared();
+        return true;
     }
     return false;
 }
@@ -1170,28 +1170,223 @@ public final boolean releaseShared(int arg) {
 
 <div id="outline-container-sec-5-4-6" class="outline-4">
 <h4 id="sec-5-4-6"><span class="section-number-4">5.4.6</span> Semaphore</h4>
-</div>
+<div class="outline-text-4" id="text-5-4-6">
+<p>
+Semaphore中文被翻译成信号量。它提供了这样的功能，它的state字段作为对资源可同时操作的争用线程数量许可的抽象，通过利用底层提
+供的cas操作，保证了一个争用线程只能拿到一个许可，对于没有许可的时候，争用线程需要等待已经拿到争用许可的线程释放许可
+后，再去获取许可。
+</p>
 
+<p>
+代码分析就不贴了，我们感性的分析一下实现过程。state字段用来表明资源被占用的状态，state初始化为几则表明资源可以被几个争用线程同时使用。
+线程获取许可的时候，调用acquire方法，还是老套路先利用cas操作尝试将state字段的值减一，表明当前线程想占用一个许可；获
+取成功则继续执行，获取失败则加入到CLH队列中，利用LockSupport将线程暂停执行。当已经获取许可的线程执行完成后，尝试释放
+一个许可，也就是把state字段的值加一。释放成功后，将CLH队列中等待许可的线程唤醒，让线程去尝试获取许可。
+</p>
+
+<p>
+Semaphore提供了对允许多个争用者同时占用资源这种场景的抽象，正符合我们经常见到的线程池、连接池等场景，也可以用来做限
+流使用。
+</p>
+</div>
+</div>
 <div id="outline-container-sec-5-4-7" class="outline-4">
 <h4 id="sec-5-4-7"><span class="section-number-4">5.4.7</span> FutureTask</h4>
+<div class="outline-text-4" id="text-5-4-7">
+<p>
+FutureTask（简写FT）提供了这样一个功能，当我们启用一个线程去做计算的时候，一般是不知道什么时候完成计算，也无法获取返回结果的。
+但FT+Callable（后面简称FC）却可以在计算完成后获取返回结果。FC是怎么利用资源争用模型实现功能的呢？
+</p>
+
+<p>
+我们首先分析要解决的问题有哪些。一是要知道启用的线程什么时候完成计算，二是从哪里得到计算结果。既然主线程无法主动在完
+成计算后获取计算结果，我们可以反过来思考，让主线程主动等待，当计算线程完成计算后，将计算结果设置到主线程持有的
+FT中，并且唤醒等待的主线程。
+</p>
+
+<p>
+那么，这个场景就很符合我们之前说的锁的模型了：线程需要被暂停和暂存，并且能被恢复；主线程和计算线程争用共享的
+FT这一资源；通过state字段表明FT有没有被设置计算结果的状态。
+</p>
+
+<p>
+我们来感性的理解一下FC的实现过程，首先我们新建一个Callable对象，里面存放要获取计算结果的计算过程，然后我们通过
+AbstractExecutorService提供的submit方法，新建一个FT对象，FT持有Callable对象，FT本身也实现了runnable接口，中FT的run方
+法中，执行Callable对象的call方法，获取返回结果，将结果设置到FT的outcome对象上，然后设置state的状态是已完成，并且将等
+待的线程唤醒。这是计算线程的执行过程。主线程是通过get方法获取计算结果的，跟其他工具一样，get的时候也是先判断state的
+状态，如果是未完成，则将线程暂停并放入的CLH队列中等待FT执行完成后将其唤醒。
+</p>
+</div>
 </div>
 </div>
 </div>
 <div id="outline-container-sec-6" class="outline-2">
 <h2 id="sec-6"><span class="section-number-2">6</span> Java线程管理</h2>
 <div class="outline-text-2" id="text-6">
-</div><div id="outline-container-sec-6-1" class="outline-3">
+<p>
+通过前面对线程的介绍，我们可以了解到，线程和进程一样，也是对系统资源的一种抽象，只是线程占有的资源要少一点。既然是系统
+资源，那么就受限于系统配置，不可能无限多的创建。对于这种受限的，且创建和销毁都比较耗时耗力的资源，我们就应该利用资源池
+的思想将其池化，以达到更高效的管理和使用的目的。jdk就为线程的管理提供了一套线程池工具。核心就是ThreadPoolExecutor这个
+类。
+</p>
+</div>
+<div id="outline-container-sec-6-1" class="outline-3">
 <h3 id="sec-6-1"><span class="section-number-3">6.1</span> ThreadPoolExecutor解读</h3>
 <div class="outline-text-3" id="text-6-1">
-</div><div id="outline-container-sec-6-1-1" class="outline-4">
+<p>
+TPE要实现线程资源池化管理的功能，其结构设计是这样的：一个核心线程数大小，一个最大线程数大小，一个空闲线程等待时长，一
+个任务暂存队列，一个产生线程的工厂和一个任务拒绝测略。TPE的构造方法也是完成这几个参数的设置。下面我们做一下详细说明。
+</p>
+</div>
+<div id="outline-container-sec-6-1-1" class="outline-4">
 <h4 id="sec-6-1-1"><span class="section-number-4">6.1.1</span> 参数说明</h4>
+<div class="outline-text-4" id="text-6-1-1">
+<ol class="org-ol">
+<li>corePoolSize：核心线程数大小，也就是TPE中常驻的线程数量
+</li>
+<li>maximumPoolSize：最大线程数大小，新增任务的时候，如果实际工作的线程数量大于core的数量，就会尝试继续创建新线程来执
+行任务，但实际工作线程的数量不能超过max，并且小于max且大于core的线程会按照设置的空闲等待时长销毁
+</li>
+<li>keepAliveTime：空闲等待时长
+</li>
+<li>unit：空闲等待时长单位，两个结合组成了实际空闲等待时长
+</li>
+<li>workQueue：暂存任务的任务队列，当实际工作线程数大于core，并且TPE处于运行状态时，新增的任务就会尝试加入到任务队列
+中去
+</li>
+<li>handler：拒绝测略，当实际任务数大于max或者虽然加入任务队列成功但TPE已经被关闭的时候，提交的任务就会执行拒绝策略
+</li>
+</ol>
+</div>
 </div>
 <div id="outline-container-sec-6-1-2" class="outline-4">
 <h4 id="sec-6-1-2"><span class="section-number-4">6.1.2</span> 核心方法解读</h4>
-</div>
-</div>
-</div>
+<div class="outline-text-4" id="text-6-1-2">
+<p>
+代码1：
+</p>
+<div class="org-src-container">
 
+<pre class="src src-java">public void execute(Runnable command) {
+        if (command == null)
+            throw new NullPointerException();
+        /*
+         * Proceed in 3 steps:
+         *
+         * 1. If fewer than corePoolSize threads are running, try to
+         * start a new thread with the given command as its first
+         * task.  The call to addWorker atomically checks runState and
+         * workerCount, and so prevents false alarms that would add
+         * threads when it shouldn't, by returning false.
+         *
+         * 2. If a task can be successfully queued, then we still need
+         * to double-check whether we should have added a thread
+         * (because existing ones died since last checking) or that
+         * the pool shut down since entry into this method. So we
+         * recheck state and if necessary roll back the enqueuing if
+         * stopped, or start a new thread if there are none.
+         *
+         * 3. If we cannot queue task, then we try to add a new
+         * thread.  If it fails, we know we are shut down or saturated
+         * and so reject the task.
+         */
+        int c = ctl.get();\\ 线程池状态，内含核心线程数
+        if (workerCountOf(c) &lt; corePoolSize) {\\ 判断实际工作线程数是否小于核心线程数
+            if (addWorker(command, true)) \\ 如果小于则新建线程执行任务
+                return;
+            c = ctl.get();\\ 否则重新获取线程池状态
+        }
+        if (isRunning(c) &amp;&amp; workQueue.offer(command)) {\\ 判断线程池处于正常工作状态，然后尝试将任务加入任务队列，具体offer方法有哪些特性，就决定了TPE的特性
+            int recheck = ctl.get();\\ 加入任务队列可能是一个阻塞操作，所以加入成功后重新获取以判断状态
+            if (! isRunning(recheck) &amp;&amp; remove(command))\\ 如果TPE处于关闭状态，并且把刚刚加入队列的任务成功移除，并执行拒绝策略
+                reject(command);
+            else if (workerCountOf(recheck) == 0)\\否则，判断如果实际工作线程为0的话，就创建新的线程去处理队列中遗留的任务
+                addWorker(null, false);
+        }
+        else if (!addWorker(command, false))\\如果TPE已经关闭，或者放入任务队列失败，会尝试新增线程完成任务
+            reject(command);\\ 尝试失败就执行拒绝策略
+    }
+</pre>
+</div>
+<p>
+代码2：它的功能是尝试新增线程执行任务。core为真的时候，判断工作线程数是否大于核心线程数；否则判断是否大于最大线程数。校
+验通过后会新建一个Worker对象，包含任务和执行任务的线程，线程通过前面设置的线程工厂创建。然后获取TPE的锁，将worker对象加
+入的TPE的worker集合中，如果加入成功就启动线程执行任务；如果加入成功但启动失败，就将worker从集合中移除。
+</p>
+<div class="org-src-container">
+
+<pre class="src src-java">private boolean addWorker(Runnable firstTask, boolean core) {
+    retry:
+    for (;;) {
+        int c = ctl.get();
+        int rs = runStateOf(c);
+
+        // Check if queue empty only if necessary.
+        if (rs &gt;= SHUTDOWN &amp;&amp;
+            ! (rs == SHUTDOWN &amp;&amp;
+               firstTask == null &amp;&amp;
+               ! workQueue.isEmpty()))
+            return false;
+
+        for (;;) {
+            int wc = workerCountOf(c);
+            if (wc &gt;= CAPACITY ||
+                wc &gt;= (core ? corePoolSize : maximumPoolSize))
+                return false;
+            if (compareAndIncrementWorkerCount(c))
+                break retry;
+            c = ctl.get();  // Re-read ctl
+            if (runStateOf(c) != rs)
+                continue retry;
+            // else CAS failed due to workerCount change; retry inner loop
+        }
+    }
+
+    boolean workerStarted = false;
+    boolean workerAdded = false;
+    Worker w = null;
+    try {
+        w = new Worker(firstTask);
+        final Thread t = w.thread;
+        if (t != null) {
+            final ReentrantLock mainLock = this.mainLock;
+            mainLock.lock();
+            try {
+                // Recheck while holding lock.
+                // Back out on ThreadFactory failure or if
+                // shut down before lock acquired.
+                int rs = runStateOf(ctl.get());
+
+                if (rs &lt; SHUTDOWN ||
+                    (rs == SHUTDOWN &amp;&amp; firstTask == null)) {
+                    if (t.isAlive()) // precheck that t is startable
+                        throw new IllegalThreadStateException();
+                    workers.add(w);
+                    int s = workers.size();
+                    if (s &gt; largestPoolSize)
+                        largestPoolSize = s;
+                    workerAdded = true;
+                }
+            } finally {
+                mainLock.unlock();
+            }
+            if (workerAdded) {
+                t.start();
+                workerStarted = true;
+            }
+        }
+    } finally {
+        if (! workerStarted)
+            addWorkerFailed(w);
+    }
+    return workerStarted;
+}
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
 <div id="outline-container-sec-7" class="outline-2">
 <h2 id="sec-7"><span class="section-number-2">7</span> 分布式系统中的资源争用</h2>
 <div class="outline-text-2" id="text-7">
@@ -1205,7 +1400,7 @@ public final boolean releaseShared(int arg) {
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: 王月阳</p>
-<p class="date">Created: 2017-09-29 周五 18:50</p>
+<p class="date">Created: 2017-10-02 一 22:43</p>
 <p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.5.1 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
