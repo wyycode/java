@@ -1,0 +1,8 @@
+#+TITLE:王月阳的技术笔记
+#+AUTHOR:王月阳
+#+EMAIL:645583145@qq.com
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./css/style.css" />
+#+OPTIONS:^:{}
+
+1. [[./java/javaclass.html][class文件解读]]
+2. [[./java/concurrency.html][资源争用模型与java多线程编程]]
