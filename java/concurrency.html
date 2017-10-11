@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
 <title>资源争用模型(泛多线程编程)</title>
-<!-- 2017-10-09 周一 17:50 -->
+<!-- 2017-10-11 周三 15:39 -->
 <meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta  name="generator" content="Org-mode" />
 <meta  name="author" content="王月阳" />
@@ -1115,7 +1115,7 @@ LockSupport+cas+state+CHL队列构成了Java实现锁的四个基本要素。在
 <h4 id="sec-5-4-5"><span class="section-number-4">5.4.5</span> CountDownLatch</h4>
 <div class="outline-text-4" id="text-5-4-5">
 <p>
-中文译作栅栏，它的主要功能是实现等待其他任务完成后，再继续执行当前任务。比如一个大量计算任务，要分解成几个子任务，然
+它的主要功能是实现等待其他任务完成后，再继续执行当前任务。比如一个大量计算任务，要分解成几个子任务，然
 后主任务要等子任务结束之后继续运行，这种场景就可以用CountDownLatch了。主线程构造一个CountDownLatch，state设置为子任
 务的数量，子任务线程在执行结束的时候，会把state字段原子的减一。主任务线程会阻塞在CountDownLatch的await方法上。等子任
 务线程把state字段修改为0的时候，标识所有子任务结束，然后会唤醒之前暂停的主任务线程。
@@ -1464,7 +1464,7 @@ redis的server端，对所有的操作，不区分读写，都是按到达顺序
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: 王月阳</p>
-<p class="date">Created: 2017-10-09 周一 17:50</p>
+<p class="date">Created: 2017-10-11 周三 15:39</p>
 <p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.5.1 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
