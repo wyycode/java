@@ -1,0 +1,359 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<title>锁的设计模型</title>
+<!-- 2017-10-12 周四 10:36 -->
+<meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta  name="generator" content="Org-mode" />
+<meta  name="author" content="王月阳" />
+<meta  name="description" content="单机或者分布式环境中，锁的模型与设计"
+ />
+<meta  name="keywords" content="Java concurrenty 多线程 AQS Java锁 资源争用" />
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { color: green; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  pre.src-sh:before    { content: 'sh'; }
+  pre.src-bash:before  { content: 'sh'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-R:before     { content: 'R'; }
+  pre.src-perl:before  { content: 'Perl'; }
+  pre.src-java:before  { content: 'Java'; }
+  pre.src-sql:before   { content: 'SQL'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.right  { text-align: center;  }
+  th.left   { text-align: center;   }
+  th.center { text-align: center; }
+  td.right  { text-align: right;  }
+  td.left   { text-align: left;   }
+  td.center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara:nth-child(2) { display: inline; }
+  .footpara { display: block; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  /*]]>*/-->
+</style>
+<link rel="stylesheet" type="text/css" href="./css/style.css" />
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2013 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">锁的设计模型</h1>
+<p>
+宣传一下我的qq群：412052579。里面有一些计算机相关的资料，不定期有人开讲。
+</p>
+
+<p>
+锁是资源争用模型里面，排队模型的实现方式之一。建议先去了解一下资源争用模型，
+<a href="https://github.com/wyycode/java/blob/master/java/concurrency.org">临时blog地址</a>
+</p>
+
+<p>
+一个锁的设计要考虑的包含如下几个方面： 
+</p>
+<ol class="org-ol">
+<li>抽象资源状态的标志位
+</li>
+<li>对标志位的原子复合操作
+</li>
+<li>对争用者行为的控制，包括暂停和恢复
+</li>
+<li>对争用者的暂存功能
+</li>
+</ol>
+
+<p>
+先理解我说的这四点
+</p>
+
+<p>
+然后我再说分布式锁
+</p>
+
+<p>
+原子复合操作就是底层工具提供的原子操作的原语
+</p>
+
+<p>
+比如jvm给java提供的 cas
+</p>
+
+<p>
+cpu给系统提供的内存屏障
+</p>
+
+<p>
+硬件到系统，系统到vm，vm到语言，单机到分布式
+</p>
+
+<p>
+都相当于底层为上层提供支持
+</p>
+
+<p>
+不要傻傻的跟我从语言一步到硬件
+</p>
+
+<p>
+系统依赖硬件提供的原子操作（数据结构）构建出系统级原语给vm/c语言用，vm依赖系统提供的原语构造出原子操作（数据结构）给java使用
+</p>
+
+<p>
+单机到分布式也是一样的
+</p>
+
+<p>
+锁要实现的功能就是要操作排队
+</p>
+
+<p>
+操作的划分，在现有的系统中都是以线程为单位的
+</p>
+
+<p>
+那么锁要实现的就是让线程排队
+</p>
+
+<p>
+排队是做什么呢？我们讲一下生活中的排队
+</p>
+
+<p>
+先来的操作资源，后来的人在 依次 等待，等前面的人 完成之后，恢复操作
+</p>
+
+<p>
+这句话里有四个重点词语分别是
+</p>
+
+<p>
+依次，等待，完成之后，恢复
+</p>
+
+<p>
+隐含的一个点就是完成之后怎么通知等待者去操作资源的
+</p>
+
+<p>
+我们来说一下这四个关键词
+</p>
+
+<p>
+完成之后描述的是资源状态
+</p>
+
+<p>
+在锁的设计中，我们一般用一个数字来抽象资源状态
+</p>
+
+<p>
+比如0是空闲，1是被占用
+</p>
+
+<p>
+依次是要保证线程先来后到的顺序
+</p>
+
+<p>
+等待呢，是指不占用cpu
+</p>
+
+<p>
+恢复是从排队的队列中唤醒下一个线程
+</p>
+
+<p>
+jvm是怎么按照这四点来实现一个锁的呢？
+</p>
+
+<p>
+首先用一个state字段抽象资源状态，这个字段是volatile的
+</p>
+
+<p>
+然后，利用LockSupport.park功能实现线程等待
+</p>
+
+<p>
+将等待的线程放置到CLH队列里
+</p>
+
+<p>
+当占用资源的线程使用完成之后，会把state设置为空闲状态，并且利用LockSupport.unpark唤醒下一个线程
+</p>
+
+<p>
+马上讲分布式锁
+</p>
+
+<p>
+这就是jvm的单机锁
+</p>
+
+<p>
+分布式锁与单机锁没有区别，只是资源不再是只存在单机中
+</p>
+
+<p>
+也就是说，不是只有单机的线程会争用资源， 其他机器的线程也会争用资源
+</p>
+
+<p>
+场景是，一个资源在多机共享
+</p>
+
+<p>
+根据以上四点
+</p>
+
+<p>
+我们需要一个多机都能读写的state数据
+</p>
+
+<p>
+比如用redis来存这个state
+</p>
+
+<p>
+然后，就跟单机一个实现线程等待，排队，唤醒
+</p>
+
+<p>
+只是这个抽象的状态由多机的线程共同使用了而已
+</p>
+
+<p>
+所以还是要先理解争用的资源是什么，争用者的范围是什么
+</p>
+
+<p>
+如果争用者范围只是单机的，那么就可以用单机的一个state来抽象争用资源
+</p>
+
+<p>
+如果范围是分布式的， 就需要用一个多机都能读写的state来抽象资源状态设计锁
+</p>
+
+<p>
+其他的三点，因为都是jvm的线程，所以，都可以利用jvm的原子操作设计
+</p>
+
+<p>
+所以，所谓的分布式锁，只是争用者范围扩展了而已
+</p>
+
+<p>
+没什么特别的
+</p>
+</div>
+<div id="postamble" class="status">
+<p class="author">Author: 王月阳</p>
+<p class="date">Created: 2017-10-12 周四 10:36</p>
+<p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.5.1 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>
